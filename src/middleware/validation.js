@@ -1,0 +1,48 @@
+const { validationResult } = require('express-validator');
+
+// Middleware para verificar se há erros de validação
+const validateRequest = (req, res, next) => {
+  const errors = validationResult(req);
+  
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      error: 'Dados inválidos',
+      message: 'Verifique os campos enviados',
+      details: errors.array().map(error => ({
+        field: error.path,
+        message: error.msg,
+        value: error.value
+      }))
+    });
+  }
+  
+  next();
+};
+
+// Middleware para sanitizar dados de entrada
+const sanitizeInput = (req, res, next) => {
+  // Sanitizar body
+  if (req.body) {
+    Object.keys(req.body).forEach(key => {
+      if (typeof req.body[key] === 'string') {
+        req.body[key] = req.body[key].trim();
+      }
+    });
+  }
+
+  // Sanitizar query params
+  if (req.query) {
+    Object.keys(req.query).forEach(key => {
+      if (typeof req.query[key] === 'string') {
+        req.query[key] = req.query[key].trim();
+      }
+    });
+  }
+
+  next();
+};
+
+module.exports = {
+  validateRequest,
+  sanitizeInput
+}; 
