@@ -65,11 +65,15 @@ const initializeApp = async () => {
   let retries = 5;
   while (retries > 0) {
     try {
+      console.log(`🔄 Tentativa ${6 - retries}/5 de conexão com o banco...`);
+      
       // Testar conexão com o banco de dados
       const isConnected = await testConnection();
       if (!isConnected) {
         throw new Error('Não foi possível conectar ao banco de dados');
       }
+
+      console.log('✅ Conexão com banco estabelecida com sucesso');
 
       // Iniciar servidor
       app.listen(config.port, () => {
@@ -81,19 +85,28 @@ const initializeApp = async () => {
         
         if (config.isProduction) {
           console.log(`🔒 Modo produção ativo`);
+          console.log(`🌐 URL pública: https://impulsionar-talentos-api.onrender.com`);
         }
       });
       
       return;
     } catch (error) {
       console.error(`❌ Tentativa ${6 - retries}/5 falhou:`, error.message);
+      console.error(`Código do erro: ${error.code || 'N/A'}`);
+      
       retries--;
       if (retries === 0) {
         console.error('❌ Todas as tentativas de conexão falharam');
+        console.error('💡 Verifique:');
+        console.error('   - DATABASE_URL está correta');
+        console.error('   - Supabase está acessível');
+        console.error('   - Configurações SSL estão corretas');
         process.exit(1);
       }
-      // Esperar 5 segundos antes da próxima tentativa
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      
+      const delay = config.isProduction ? 10000 : 5000; // 10s para produção, 5s para dev
+      console.log(`⏳ Aguardando ${delay/1000}s antes da próxima tentativa...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
 };

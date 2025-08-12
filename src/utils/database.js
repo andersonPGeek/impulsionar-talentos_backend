@@ -2,30 +2,46 @@ const { Pool } = require('pg');
 
 // Configuração do pool de conexões
 const getPoolConfig = () => {
-  // Se temos uma string de conexão válida, use ela
+  // Configuração para produção (Render)
+  if (process.env.NODE_ENV === 'production') {
+    console.log('🔧 Configurando banco para PRODUÇÃO');
+    
+    return {
+      connectionString: process.env.DATABASE_URL,
+      ssl: {
+        rejectUnauthorized: false,
+        sslmode: 'require'
+      },
+      max: 10,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 15000, // Aumentar timeout para produção
+      keepAlive: true,
+      keepAliveInitialDelayMillis: 10000
+    };
+  }
+  
+  // Configuração para desenvolvimento local
+  console.log('🔧 Configurando banco para DESENVOLVIMENTO');
+  
   if (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('postgresql://')) {
     return {
       connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? {
-        rejectUnauthorized: false
-      } : false,
-      max: process.env.NODE_ENV === 'production' ? 10 : 20,
+      ssl: false,
+      max: 20,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000
     };
   }
   
-  // Caso contrário, use configuração manual
+  // Fallback para configuração manual
   return {
     host: 'db.fdopxrrcvbzhwszsluwm.supabase.co',
     port: 5432,
     database: 'postgres',
     user: 'postgres',
     password: 'EWCWeoCTBbhWOK3T',
-    ssl: process.env.NODE_ENV === 'production' ? {
-      rejectUnauthorized: false
-    } : false,
-    max: process.env.NODE_ENV === 'production' ? 10 : 20,
+    ssl: false,
+    max: 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000
   };

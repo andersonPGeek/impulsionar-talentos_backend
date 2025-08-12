@@ -10,12 +10,14 @@ services:
         value: production
       - key: PORT
         value: 10000
+      - key: DATABASE_URL
+        value: postgresql://postgres:EWCWeoCTBbhWOK3T@db.fdopxrrcvbzhwszsluwm.supabase.co:5432/postgres
       - key: JWT_SECRET
-        generateValue: true
+        value: impulsionar160716!
       - key: JWT_EXPIRES_IN
         value: 24h
       - key: CORS_ORIGIN
-        value: https://seu-frontend.onrender.com
+        value: https://pdi-pathway-builder.vercel.app
       - key: LOG_LEVEL
         value: info
     healthCheckPath: /health

@@ -98,6 +98,48 @@ curl -X POST https://impulsionar-talentos-backend.onrender.com/api/auth/login \
 - `DATABASE_URL`: Mantenha segura
 - `CORS_ORIGIN`: Configure apenas as origens necessárias
 
+## 🛠️ Troubleshooting
+
+### Erro: ENETUNREACH - Conexão com Banco
+
+**Sintomas:**
+```
+❌ Tentativa 1/5 falhou: connect ENETUNREACH 2600:1f1e:75b:4b03:7946:9ca4:235b:4ef7:5432
+```
+
+**Soluções:**
+
+1. **Verificar String de Conexão**
+   - Confirme que `DATABASE_URL` está correta
+   - Verifique se a senha está correta
+   - Teste a conexão localmente
+
+2. **Configuração SSL**
+   - O projeto já está configurado para produção
+   - Verifique se o Supabase está acessível
+
+3. **Timeout de Conexão**
+   - O projeto usa timeout de 15s para produção
+   - Verifique logs do Render para mais detalhes
+
+4. **Região do Render**
+   - Tente mudar a região do serviço
+   - Use uma região mais próxima do banco
+
+### Erro: Build Failed
+
+**Soluções:**
+1. Verifique se todas as dependências estão no `package.json`
+2. Confirme que o `start` script está correto
+3. Verifique os logs de build no Render
+
+### Erro: Health Check Failed
+
+**Soluções:**
+1. Verifique se o endpoint `/health` está funcionando
+2. Confirme que a porta está correta
+3. Verifique se o servidor está iniciando corretamente
+
 ### SSL
 O Render fornece SSL automático para todos os serviços.
 
