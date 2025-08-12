@@ -36,11 +36,16 @@ npm install
 cp env.example .env
 ```
 
-4. Edite o arquivo `.env` com suas configurações:
+4. Gere um JWT_SECRET seguro:
+```bash
+npm run generate-secret
+```
+
+5. Edite o arquivo `.env` com suas configurações:
 ```env
 DATABASE_URL=postgresql://postgres:EWCWeoCTBbhWOK3T@db.fdopxrrcvbzhwszsluwm.supabase.co:5432/postgres
-PORT=3001
-JWT_SECRET=seu_jwt_secret_aqui
+PORT=3002
+JWT_SECRET=seu_jwt_secret_gerado
 NODE_ENV=development
 ```
 
@@ -56,7 +61,36 @@ npm run dev
 npm start
 ```
 
-O servidor estará disponível em `http://localhost:3001`
+### Testes
+```bash
+# Todos os testes
+npm test
+
+# Teste específico
+npm run test:auth
+npm run test:db
+```
+
+O servidor estará disponível em `http://localhost:3002`
+
+## 🚀 Deploy
+
+### Render (Recomendado)
+O projeto está configurado para deploy automático no Render.
+
+1. Conecte seu repositório no Render
+2. Use o arquivo `render.yaml` para configuração automática
+3. Configure as variáveis de ambiente
+4. Deploy automático a cada push
+
+**Documentação completa**: [DEPLOY.md](./DEPLOY.md)
+
+### Outras Plataformas
+O projeto pode ser deployado em qualquer plataforma que suporte Node.js:
+- Heroku
+- Railway
+- DigitalOcean App Platform
+- AWS Elastic Beanstalk
 
 ## 📊 Endpoints
 
@@ -68,6 +102,7 @@ O servidor estará disponível em `http://localhost:3001`
 - `GET /api/test` - Teste das rotas
 
 ### Autenticação
+- `POST /api/auth/register` - Criar novo usuário
 - `POST /api/auth/login` - Login de usuário
 - `GET /api/auth/validate` - Validar token (protegido)
 - `POST /api/auth/change-password` - Alterar senha (protegido)

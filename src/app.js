@@ -2,15 +2,22 @@ const express = require('express');
 const cors = require('cors');
 const { testConnection } = require('./utils/database');
 const Logger = require('./utils/logger');
-require('dotenv').config();
+const config = require('./config/environment');
 
 // Importar rotas
 const apiRoutes = require('./routes/index');
 
 const app = express();
 
+// Configuração do CORS
+const corsOptions = {
+  origin: config.cors.origin,
+  credentials: config.cors.credentials,
+  optionsSuccessStatus: 200
+};
+
 // Middlewares
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(Logger.request);
@@ -65,12 +72,16 @@ const initializeApp = async () => {
       }
 
       // Iniciar servidor
-      const PORT = process.env.PORT || 3002;
-      app.listen(PORT, () => {
-        console.log(`🚀 Servidor rodando na porta ${PORT}`);
-        console.log(`📊 Health check: http://localhost:${PORT}/health`);
-        console.log(`🔗 API base: http://localhost:${PORT}/api`);
-        console.log(`🔐 Auth endpoints: http://localhost:${PORT}/api/auth`);
+      app.listen(config.port, () => {
+        console.log(`🚀 Servidor rodando na porta ${config.port}`);
+        console.log(`🌍 Ambiente: ${config.nodeEnv}`);
+        console.log(`📊 Health check: http://localhost:${config.port}/health`);
+        console.log(`🔗 API base: http://localhost:${config.port}/api`);
+        console.log(`🔐 Auth endpoints: http://localhost:${config.port}/api/auth`);
+        
+        if (config.isProduction) {
+          console.log(`🔒 Modo produção ativo`);
+        }
       });
       
       return;

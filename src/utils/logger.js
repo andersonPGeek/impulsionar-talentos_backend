@@ -16,7 +16,8 @@ class Logger {
   }
 
   static debug(message, data = null) {
-    if (process.env.NODE_ENV === 'development') {
+    const logLevel = process.env.LOG_LEVEL || 'info';
+    if (process.env.NODE_ENV === 'development' || logLevel === 'debug') {
       const timestamp = new Date().toISOString();
       console.log(`[DEBUG] ${timestamp} - ${message}`, data ? JSON.stringify(data, null, 2) : '');
     }

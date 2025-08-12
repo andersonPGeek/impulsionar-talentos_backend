@@ -8,6 +8,7 @@ class AuthController extends BaseController {
   constructor() {
     super();
     this.login = this.login.bind(this);
+    this.register = this.register.bind(this);
     this.validateToken = this.validateToken.bind(this);
     this.changePassword = this.changePassword.bind(this);
   }
@@ -43,7 +44,7 @@ class AuthController extends BaseController {
           email: user.email
         },
         process.env.JWT_SECRET,
-        { expiresIn: '24h' }
+        { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
       );
 
       // Retornar dados do usuário (sem a senha) e token
@@ -58,11 +59,91 @@ class AuthController extends BaseController {
       return ApiResponse.success(res, {
         user: userData,
         token,
-        expiresIn: '24h'
+        expiresIn: process.env.JWT_EXPIRES_IN || '24h'
       }, 'Login realizado com sucesso');
 
     } catch (error) {
       return this.handleError(res, error, 'Erro ao realizar login');
+    }
+  }
+
+  // Registro de usuário
+  async register(req, res) {
+    try {
+      const { 
+        email, 
+        senha, 
+        nome, 
+        data_nascimento, 
+        cargo, 
+        idade, 
+        id_gestor, 
+        id_departamento, 
+        id_cliente, 
+        perfil_acesso 
+      } = req.body;
+
+      // Verificar se o email já existe
+      const existingUser = await query(
+        'SELECT id FROM usuarios WHERE email = $1',
+        [email]
+      );
+
+      if (existingUser.rows.length > 0) {
+        return ApiResponse.validationError(res, 'Email já está em uso');
+      }
+
+      // Criptografar senha com bcrypt (salt rounds = 10)
+      const hashedPassword = await bcrypt.hash(senha, 10);
+
+      // Inserir novo usuário
+      const insertResult = await query(
+        `INSERT INTO usuarios (
+          email, senha, nome, data_nascimento, cargo, idade, 
+          id_gestor, id_departamento, id_cliente, perfil_acesso
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+        RETURNING id, email, nome, data_nascimento, cargo, idade, 
+                  id_gestor, id_departamento, id_cliente, perfil_acesso`,
+        [
+          email, hashedPassword, nome, data_nascimento, cargo, idade,
+          id_gestor, id_departamento, id_cliente, perfil_acesso
+        ]
+      );
+
+      const newUser = insertResult.rows[0];
+
+      // Gerar token JWT
+      const token = jwt.sign(
+        {
+          id: newUser.id,
+          email: newUser.email
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+      );
+
+      // Retornar dados do usuário (sem a senha) e token
+      const userData = {
+        id: newUser.id,
+        email: newUser.email,
+        nome: newUser.nome,
+        data_nascimento: newUser.data_nascimento,
+        cargo: newUser.cargo,
+        idade: newUser.idade,
+        id_gestor: newUser.id_gestor,
+        id_departamento: newUser.id_departamento,
+        id_cliente: newUser.id_cliente,
+        perfil_acesso: newUser.perfil_acesso
+      };
+
+      return ApiResponse.success(res, {
+        user: userData,
+        token,
+        expiresIn: process.env.JWT_EXPIRES_IN || '24h'
+      }, 'Usuário criado com sucesso', 201);
+
+    } catch (error) {
+      return this.handleError(res, error, 'Erro ao criar usuário');
     }
   }
 

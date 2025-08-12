@@ -11,6 +11,76 @@ http://localhost:3002/api/auth
 
 ---
 
+## 📝 Registro
+
+**POST** `/register`
+
+Cria um novo usuário e retorna um token JWT.
+
+### Request Body
+```json
+{
+  "email": "novo@exemplo.com",
+  "senha": "MinhaSenha123",
+  "nome": "João Silva",
+  "data_nascimento": "1990-01-01T00:00:00.000Z",
+  "cargo": "Desenvolvedor",
+  "idade": 30,
+  "id_gestor": 1,
+  "id_departamento": 1,
+  "id_cliente": 1,
+  "perfil_acesso": 1
+}
+```
+
+### Validações
+- `email`: Deve ser um email válido e único
+- `senha`: Mínimo 6 caracteres, deve conter maiúscula, minúscula e número
+- `nome`: Entre 2 e 100 caracteres (obrigatório)
+- `data_nascimento`: Data no formato ISO 8601 (opcional)
+- `cargo`: Máximo 100 caracteres (opcional)
+- `idade`: Número entre 0 e 150 (opcional)
+- `id_gestor`: ID de um usuário gestor existente (opcional)
+- `id_departamento`: ID de um departamento existente (opcional)
+- `id_cliente`: ID de um cliente existente (opcional)
+- `perfil_acesso`: ID de um perfil de acesso existente (opcional)
+
+### Response (201 - Sucesso)
+```json
+{
+  "success": true,
+  "message": "Usuário criado com sucesso",
+  "data": {
+    "user": {
+      "id": 2,
+      "email": "novo@exemplo.com",
+      "nome": "João Silva",
+      "data_nascimento": "1990-01-01T00:00:00.000Z",
+      "cargo": "Desenvolvedor",
+      "idade": 30,
+      "id_gestor": 1,
+      "id_departamento": 1,
+      "id_cliente": 1,
+      "perfil_acesso": 1
+    },
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "expiresIn": "24h"
+  },
+  "timestamp": "2024-01-01T00:00:00.000Z"
+}
+```
+
+### Response (400 - Erro)
+```json
+{
+  "success": false,
+  "message": "Email já está em uso",
+  "timestamp": "2024-01-01T00:00:00.000Z"
+}
+```
+
+---
+
 ## 📝 Login
 
 **POST** `/login`
@@ -144,7 +214,21 @@ Authorization: Bearer <seu-token-jwt>
 
 ## 🚀 Como Usar
 
-### 1. Login
+### 1. Registro
+```bash
+curl -X POST http://localhost:3002/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "novo@exemplo.com",
+    "senha": "MinhaSenha123",
+    "nome": "João Silva",
+    "data_nascimento": "1990-01-01T00:00:00.000Z",
+    "cargo": "Desenvolvedor",
+    "idade": 30
+  }'
+```
+
+### 2. Login
 ```bash
 curl -X POST http://localhost:3002/api/auth/login \
   -H "Content-Type: application/json" \
@@ -191,6 +275,7 @@ A API utiliza a tabela `usuarios` com a seguinte estrutura:
 ## 📋 Códigos de Status
 
 - `200` - Sucesso
+- `201` - Criado com sucesso
 - `400` - Dados inválidos
 - `401` - Não autorizado
 - `403` - Acesso negado

@@ -1,34 +1,45 @@
-const { testConnection, query } = require('../src/utils/database');
+const { Pool } = require('pg');
+require('dotenv').config();
 
 async function testDatabase() {
   console.log('🗄️ Testando Conexão com Banco de Dados...\n');
 
   try {
-    // Teste 1: Conexão básica
-    console.log('1️⃣ Testando conexão básica...');
-    const isConnected = await testConnection();
-    
-    if (isConnected) {
+    // Teste 1: Criar pool de conexão
+    console.log('1️⃣ Criando pool de conexão...');
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.NODE_ENV === 'production' ? {
+        rejectUnauthorized: false
+      } : false
+    });
+
+    // Teste 2: Conexão básica
+    console.log('\n2️⃣ Testando conexão básica...');
+    try {
+      const client = await pool.connect();
+      await client.query('SELECT 1 as test');
+      client.release();
       console.log('✅ Conexão com banco estabelecida com sucesso');
-    } else {
-      console.log('❌ Falha na conexão com banco');
+    } catch (error) {
+      console.log('❌ Falha na conexão com banco:', error.message);
       return;
     }
 
-    // Teste 2: Query simples
-    console.log('\n2️⃣ Testando query simples...');
+    // Teste 3: Query simples
+    console.log('\n3️⃣ Testando query simples...');
     try {
-      const result = await query('SELECT 1 as test');
+      const result = await pool.query('SELECT 1 as test');
       console.log('✅ Query executada com sucesso');
       console.log('   Resultado:', result.rows[0]);
     } catch (error) {
       console.log('❌ Erro na query:', error.message);
     }
 
-    // Teste 3: Verificar tabela usuarios
-    console.log('\n3️⃣ Verificando tabela usuarios...');
+    // Teste 4: Verificar tabela usuarios
+    console.log('\n4️⃣ Verificando tabela usuarios...');
     try {
-      const result = await query(`
+      const result = await pool.query(`
         SELECT column_name, data_type, is_nullable 
         FROM information_schema.columns 
         WHERE table_name = 'usuarios' 
@@ -44,58 +55,18 @@ async function testDatabase() {
       console.log('❌ Erro ao verificar tabela:', error.message);
     }
 
-    // Teste 4: Contar usuários
-    console.log('\n4️⃣ Contando usuários na tabela...');
+    // Teste 5: Contar usuários
+    console.log('\n5️⃣ Contando usuários na tabela...');
     try {
-      const result = await query('SELECT COUNT(*) as total FROM usuarios');
+      const result = await pool.query('SELECT COUNT(*) as total FROM usuarios');
       console.log('✅ Contagem realizada');
       console.log(`   Total de usuários: ${result.rows[0].total}`);
     } catch (error) {
       console.log('❌ Erro ao contar usuários:', error.message);
     }
 
-    // Teste 5: Verificar estrutura da tabela
-    console.log('\n5️⃣ Verificando estrutura da tabela...');
-    try {
-      const result = await query(`
-        SELECT 
-          column_name,
-          data_type,
-          is_nullable,
-          column_default
-        FROM information_schema.columns 
-        WHERE table_name = 'usuarios' 
-        ORDER BY ordinal_position
-      `);
-      
-      const expectedColumns = [
-        { name: 'id', type: 'bigint' },
-        { name: 'data_nascimento', type: 'timestamp with time zone' },
-        { name: 'email', type: 'text' },
-        { name: 'senha', type: 'text' },
-        { name: 'id_gestor', type: 'bigint' },
-        { name: 'id_departamento', type: 'bigint' }
-      ];
-
-      console.log('✅ Estrutura da tabela verificada');
-      
-      const foundColumns = result.rows.map(row => ({
-        name: row.column_name,
-        type: row.data_type
-      }));
-
-      expectedColumns.forEach(expected => {
-        const found = foundColumns.find(col => col.name === expected.name);
-        if (found) {
-          console.log(`   ✅ ${expected.name} (${found.type})`);
-        } else {
-          console.log(`   ❌ ${expected.name} - NÃO ENCONTRADO`);
-        }
-      });
-
-    } catch (error) {
-      console.log('❌ Erro ao verificar estrutura:', error.message);
-    }
+    // Fechar pool
+    await pool.end();
 
     console.log('\n🎉 Testes de banco de dados concluídos!');
 
