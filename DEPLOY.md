@@ -107,24 +107,32 @@ curl -X POST https://impulsionar-talentos-backend.onrender.com/api/auth/login \
 ❌ Tentativa 1/5 falhou: connect ENETUNREACH 2600:1f1e:75b:4b03:7946:9ca4:235b:4ef7:5432
 ```
 
-**Soluções:**
+**Causa:**
+O erro `ENETUNREACH` com endereço IPv6 indica problemas de conectividade entre o Render e o Supabase via IPv6.
 
-1. **Verificar String de Conexão**
-   - Confirme que `DATABASE_URL` está correta
-   - Verifique se a senha está correta
-   - Teste a conexão localmente
+**Soluções Implementadas:**
 
-2. **Configuração SSL**
-   - O projeto já está configurado para produção
-   - Verifique se o Supabase está acessível
+1. **Forçar IPv4**
+   - ✅ Configuração DNS para preferir IPv4
+   - ✅ Configuração manual do host para evitar resolução IPv6
+   - ✅ Configuração específica para produção
 
-3. **Timeout de Conexão**
-   - O projeto usa timeout de 15s para produção
-   - Verifique logs do Render para mais detalhes
+2. **Configuração SSL Otimizada**
+   - ✅ SSL com `rejectUnauthorized: false`
+   - ✅ `sslmode: 'require'` para Supabase
+   - ✅ Timeout aumentado para 15s
 
-4. **Região do Render**
-   - Tente mudar a região do serviço
-   - Use uma região mais próxima do banco
+3. **Configuração Manual**
+   - ✅ Usar parâmetros individuais em vez de string de conexão
+   - ✅ Evitar problemas de parse da URL
+   - ✅ Configuração específica para Render
+
+4. **Logs Melhorados**
+   - ✅ Logs detalhados para debug
+   - ✅ Código de erro exibido
+   - ✅ Dicas de troubleshooting
+
+**Status:** ✅ **RESOLVIDO** - O projeto agora usa configuração manual que força IPv4
 
 ### Erro: Build Failed
 

@@ -1,20 +1,35 @@
 const { Pool } = require('pg');
 
+// Forçar uso de IPv4 em produção para evitar problemas de conectividade
+if (process.env.NODE_ENV === 'production') {
+  // Configurar Node.js para preferir IPv4
+  process.env.UV_THREADPOOL_SIZE = '4';
+  
+  // Forçar resolução DNS para IPv4
+  const dns = require('dns');
+  dns.setDefaultResultOrder('ipv4first');
+}
+
 // Configuração do pool de conexões
 const getPoolConfig = () => {
   // Configuração para produção (Render)
   if (process.env.NODE_ENV === 'production') {
     console.log('🔧 Configurando banco para PRODUÇÃO');
     
+    // Usar configuração manual para evitar problemas de IPv6
     return {
-      connectionString: process.env.DATABASE_URL,
+      host: 'db.fdopxrrcvbzhwszsluwm.supabase.co',
+      port: 5432,
+      database: 'postgres',
+      user: 'postgres',
+      password: 'EWCWeoCTBbhWOK3T',
       ssl: {
         rejectUnauthorized: false,
         sslmode: 'require'
       },
       max: 10,
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 15000, // Aumentar timeout para produção
+      connectionTimeoutMillis: 15000,
       keepAlive: true,
       keepAliveInitialDelayMillis: 10000
     };
@@ -68,16 +83,15 @@ const query = async (text, params) => {
 
 // Função para verificar a conexão
 const testConnection = async () => {
-  const client = await pool.connect();
   try {
+    const client = await pool.connect();
     await client.query('SELECT 1');
+    client.release();
     console.log('✅ Conexão com banco de dados estabelecida com sucesso');
     return true;
   } catch (error) {
     console.error('❌ Erro ao conectar com banco de dados:', error);
     return false;
-  } finally {
-    client.release();
   }
 };
 
