@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { testConnection } = require('./utils/database');
+const { testConnection } = require('./utils/supabase');
 const Logger = require('./utils/logger');
 const config = require('./config/environment');
 

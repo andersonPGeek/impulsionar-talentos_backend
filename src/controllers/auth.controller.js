@@ -1,6 +1,6 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { query } = require('../utils/database');
+const { query } = require('../utils/supabase');
 const ApiResponse = require('../utils/response');
 const { BaseController } = require('./index');
 

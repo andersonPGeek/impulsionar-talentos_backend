@@ -115,7 +115,7 @@ src/
 ├── controllers/        # Controladores da aplicação
 ├── middleware/         # Middlewares (auth, validation, etc.)
 ├── routes/            # Rotas da API
-├── utils/             # Utilitários (database, logger, response)
+├── utils/             # Utilitários (supabase, logger, response)
 └── config/            # Configurações
 ```
 

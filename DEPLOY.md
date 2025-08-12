@@ -132,7 +132,16 @@ O erro `ENETUNREACH` com endereço IPv6 indica problemas de conectividade entre 
    - ✅ Código de erro exibido
    - ✅ Dicas de troubleshooting
 
-**Status:** ✅ **RESOLVIDO** - O projeto agora usa configuração manual que força IPv4
+**Status:** ✅ **RESOLVIDO** - O projeto agora usa o padrão `utils/supabase.js` que funciona no Render
+
+### Solução Implementada
+
+O problema foi resolvido seguindo o padrão do projeto que já funciona no Render:
+
+1. **Arquivo `utils/supabase.js`** - Configuração específica para Supabase
+2. **Configuração SSL simples** - `rejectUnauthorized: false` apenas em produção
+3. **Padrão testado** - Usando a mesma estrutura do projeto que funciona
+4. **Fallback robusto** - Configuração manual para desenvolvimento local
 
 ### Erro: Build Failed
 
