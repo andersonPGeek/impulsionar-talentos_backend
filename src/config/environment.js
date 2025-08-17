@@ -20,8 +20,33 @@ const config = {
   
   // Configurações de CORS
   cors: {
-    origin: process.env.CORS_ORIGIN || '*',
-    credentials: true
+    origin: function (origin, callback) {
+      // Permitir requisições sem origin (como mobile apps ou Postman)
+      if (!origin) return callback(null, true);
+      
+      const allowedOrigins = process.env.CORS_ORIGIN 
+        ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
+        : ['http://localhost:8080', 'http://localhost:3000', 'http://localhost:3002'];
+      
+      // Em desenvolvimento, permitir todos os localhost
+      if (process.env.NODE_ENV === 'development') {
+        if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+          return callback(null, true);
+        }
+      }
+      
+      // Verificar se a origin está na lista de permitidas
+      if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+        return callback(null, true);
+      }
+      
+      console.warn(`⚠️ CORS bloqueado para origin: ${origin}`);
+      return callback(new Error('Não permitido pelo CORS'));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    optionsSuccessStatus: 200
   },
   
   // Configurações de log

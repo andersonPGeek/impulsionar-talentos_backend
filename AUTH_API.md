@@ -110,7 +110,8 @@ Realiza o login do usuário e retorna um token JWT.
       "email": "usuario@exemplo.com",
       "data_nascimento": "1990-01-01T00:00:00.000Z",
       "id_gestor": 2,
-      "id_departamento": 1
+      "id_departamento": 1,
+      "perfil_acesso": 1
     },
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
     "expiresIn": "24h"
@@ -149,7 +150,11 @@ Authorization: Bearer <seu-token-jwt>
   "data": {
     "user": {
       "id": 1,
-      "email": "usuario@exemplo.com"
+      "email": "usuario@exemplo.com",
+      "data_nascimento": "1990-01-01T00:00:00.000Z",
+      "id_gestor": 2,
+      "id_departamento": 1,
+      "perfil_acesso": 1
     },
     "valid": true
   },

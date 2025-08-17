@@ -47,6 +47,21 @@ DATABASE_URL=postgresql://postgres:EWCWeoCTBbhWOK3T@db.fdopxrrcvbzhwszsluwm.supa
 PORT=3002
 JWT_SECRET=seu_jwt_secret_gerado
 NODE_ENV=development
+CORS_ORIGIN=http://localhost:8080,http://localhost:3000
+```
+
+### Configuração do CORS
+
+O projeto está configurado para aceitar requisições dos seguintes domínios:
+
+- **Desenvolvimento**: `http://localhost:8080`, `http://localhost:3000`, `http://localhost:3002`
+- **Produção**: Configurado via variável `CORS_ORIGIN`
+
+Para adicionar novos domínios, edite a variável `CORS_ORIGIN` no arquivo `.env`:
+
+```bash
+# Múltiplos domínios separados por vírgula
+CORS_ORIGIN=http://localhost:8080,http://localhost:3000,https://seu-dominio.com
 ```
 
 ## 🏃‍♂️ Executando o projeto

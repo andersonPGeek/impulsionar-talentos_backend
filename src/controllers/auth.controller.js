@@ -24,7 +24,7 @@ class AuthController extends BaseController {
         FROM information_schema.columns 
         WHERE table_schema = 'public' 
         AND table_name = 'usuarios' 
-        AND column_name IN ('id', 'email', 'senha', 'data_nascimento', 'id_gestor', 'id_departamento')
+        AND column_name IN ('id', 'email', 'senha', 'data_nascimento', 'id_gestor', 'id_departamento', 'perfil_acesso')
         ORDER BY column_name;
       `);
       
@@ -37,6 +37,7 @@ class AuthController extends BaseController {
       if (availableColumns.includes('data_nascimento')) selectColumns.push('data_nascimento');
       if (availableColumns.includes('id_gestor')) selectColumns.push('id_gestor');
       if (availableColumns.includes('id_departamento')) selectColumns.push('id_departamento');
+      if (availableColumns.includes('perfil_acesso')) selectColumns.push('perfil_acesso');
 
       const queryText = `SELECT ${selectColumns.join(', ')} FROM usuarios WHERE email = $1`;
       console.log('🔍 Query de login:', queryText);
@@ -77,6 +78,7 @@ class AuthController extends BaseController {
       if (user.data_nascimento !== undefined) userData.data_nascimento = user.data_nascimento;
       if (user.id_gestor !== undefined) userData.id_gestor = user.id_gestor;
       if (user.id_departamento !== undefined) userData.id_departamento = user.id_departamento;
+      if (user.perfil_acesso !== undefined) userData.perfil_acesso = user.perfil_acesso;
 
       return ApiResponse.success(res, {
         user: userData,
@@ -253,6 +255,12 @@ class AuthController extends BaseController {
         id: req.user.id,
         email: req.user.email
       };
+
+      // Adicionar campos opcionais se existirem no token
+      if (req.user.data_nascimento !== undefined) userData.data_nascimento = req.user.data_nascimento;
+      if (req.user.id_gestor !== undefined) userData.id_gestor = req.user.id_gestor;
+      if (req.user.id_departamento !== undefined) userData.id_departamento = req.user.id_departamento;
+      if (req.user.perfil_acesso !== undefined) userData.perfil_acesso = req.user.perfil_acesso;
 
       return ApiResponse.success(res, {
         user: userData,

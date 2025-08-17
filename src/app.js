@@ -13,7 +13,9 @@ const app = express();
 const corsOptions = {
   origin: config.cors.origin,
   credentials: config.cors.credentials,
-  optionsSuccessStatus: 200
+  methods: config.cors.methods,
+  allowedHeaders: config.cors.allowedHeaders,
+  optionsSuccessStatus: config.cors.optionsSuccessStatus
 };
 
 // Middlewares
