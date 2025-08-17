@@ -12,6 +12,7 @@ tests/
 ├── test-cors.js                 # Testes de configuração CORS
 ├── test-perfil-acesso.js        # Testes de perfil de acesso no login
 ├── test-perfil-colaborador.js   # Testes da API de perfil do colaborador
+├── test-sabotadores.js          # Testes da API de sabotadores
 └── utils/                       # Utilitários para testes
     └── test-helper.js           # Funções auxiliares para testes
 ```
@@ -34,7 +35,9 @@ node tests/test-perfil-acesso.js
 
 # Teste de perfil do colaborador
 node tests/test-perfil-colaborador.js
-```
+
+# Teste de sabotadores
+node tests/test-sabotadores.js
 
 ## 📋 Padrões para Novos Testes
 
@@ -99,6 +102,7 @@ npm run dev
 - **`auth.test.js`** - Testa APIs de autenticação (login, registro, validação de token)
 - **`database.test.js`** - Testa conexão com banco de dados e estrutura das tabelas
 - **`test-perfil-colaborador.js`** - Testa APIs de perfil do colaborador (CRUD completo)
+- **`test-sabotadores.js`** - Testa APIs de sabotadores (perguntas, respostas, resultado)
 
 ### Testes de Configuração
 - **`test-cors.js`** - Verifica se a configuração CORS está funcionando corretamente

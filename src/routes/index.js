@@ -4,6 +4,7 @@ const router = express.Router();
 // Importar rotas
 const authRoutes = require('./auth.routes');
 const perfilColaboradorRoutes = require('./perfil_colaborador.routes');
+const sabotadoresRoutes = require('./sabotadores.routes');
 // const usuariosRoutes = require('./usuarios.routes');
 // const talentosRoutes = require('./talentos.routes');
 
@@ -15,6 +16,7 @@ router.get('/test', (req, res) => {
     endpoints: {
       auth: '/api/auth',
       perfilColaborador: '/api/perfil-colaborador',
+      sabotadores: '/api/sabotadores',
       usuarios: '/api/usuarios',
       talentos: '/api/talentos'
     }
@@ -24,6 +26,7 @@ router.get('/test', (req, res) => {
 // Configurar rotas
 router.use('/auth', authRoutes);
 router.use('/perfil-colaborador', perfilColaboradorRoutes);
+router.use('/sabotadores', sabotadoresRoutes);
 // router.use('/usuarios', usuariosRoutes);
 // router.use('/talentos', talentosRoutes);
 

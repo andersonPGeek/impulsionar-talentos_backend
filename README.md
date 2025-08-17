@@ -127,6 +127,11 @@ O projeto pode ser deployado em qualquer plataforma que suporte Node.js:
 - `POST /api/perfil-colaborador` - Criar perfil do colaborador
 - `PUT /api/perfil-colaborador` - Atualizar perfil do colaborador
 
+### Sabotadores
+- `GET /api/sabotadores/:id_usuario/perguntas-pendentes` - Buscar perguntas pendentes
+- `POST /api/sabotadores/respostas` - Salvar respostas das perguntas
+- `GET /api/sabotadores/:id_usuario/resultado` - Buscar resultado dos sabotadores
+
 ## 🏗️ Estrutura do Projeto
 
 ```
@@ -184,6 +189,9 @@ node tests/test-perfil-acesso.js
 # Teste de perfil do colaborador
 node tests/test-perfil-colaborador.js
 
+# Teste de sabotadores
+node tests/test-sabotadores.js
+
 # Teste com usuário real (configure as credenciais primeiro)
 node tests/auth.test.js --real-user
 ```
@@ -226,6 +234,13 @@ A API utiliza padrões consistentes de resposta:
   "timestamp": "2024-01-01T00:00:00.000Z"
 }
 ```
+
+## 📚 Documentação
+
+- [API de Autenticação](AUTH_API.md)
+- [API de Perfil do Colaborador](PERFIL_COLABORADOR_API.md)
+- [API de Sabotadores](SABOTADORES_API.md)
+- [Guia de Deploy](DEPLOY.md)
 
 ## 📄 Licença
 
