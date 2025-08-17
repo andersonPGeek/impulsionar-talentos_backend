@@ -25,9 +25,7 @@ const registerValidation = [
     .normalizeEmail(),
   body('senha')
     .isLength({ min: 6 })
-    .withMessage('Senha deve ter pelo menos 6 caracteres')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('Senha deve conter pelo menos uma letra maiúscula, uma minúscula e um número'),
+    .withMessage('Senha deve ter pelo menos 6 caracteres'),
   body('nome')
     .isLength({ min: 2, max: 100 })
     .withMessage('Nome deve ter entre 2 e 100 caracteres')
@@ -71,8 +69,6 @@ const changePasswordValidation = [
   body('novaSenha')
     .isLength({ min: 6 })
     .withMessage('Nova senha deve ter pelo menos 6 caracteres')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('Nova senha deve conter pelo menos uma letra maiúscula, uma minúscula e um número')
 ];
 
 // Rotas públicas

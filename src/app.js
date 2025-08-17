@@ -45,10 +45,16 @@ app.get('/health', (req, res) => {
 
 // Middleware de tratamento de erros
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error('❌ Erro global:', err);
+  console.error('❌ Stack trace:', err.stack);
+  console.error('❌ Request URL:', req.url);
+  console.error('❌ Request method:', req.method);
+  console.error('❌ Request body:', req.body);
+  
   res.status(500).json({ 
     error: 'Erro interno do servidor',
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Algo deu errado'
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Algo deu errado',
+    timestamp: new Date().toISOString()
   });
 });
 

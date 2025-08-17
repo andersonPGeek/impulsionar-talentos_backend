@@ -83,6 +83,19 @@ class AuthController extends BaseController {
         perfil_acesso 
       } = req.body;
 
+      // Log para debug em produção
+      console.log('📝 Dados de registro recebidos:', {
+        email,
+        nome,
+        data_nascimento,
+        cargo,
+        idade,
+        id_gestor,
+        id_departamento,
+        id_cliente,
+        perfil_acesso
+      });
+
       // Verificar se o email já existe
       const existingUser = await query(
         'SELECT id FROM usuarios WHERE email = $1',
@@ -96,6 +109,22 @@ class AuthController extends BaseController {
       // Criptografar senha com bcrypt (salt rounds = 10)
       const hashedPassword = await bcrypt.hash(senha, 10);
 
+      // Preparar dados para inserção (tratar valores null/undefined)
+      const insertData = [
+        email, 
+        hashedPassword, 
+        nome || null, 
+        data_nascimento || null, 
+        cargo || null, 
+        idade || null,
+        id_gestor || null, 
+        id_departamento || null, 
+        id_cliente || null, 
+        perfil_acesso || null
+      ];
+
+      console.log('📝 Dados preparados para inserção:', insertData);
+
       // Inserir novo usuário
       const insertResult = await query(
         `INSERT INTO usuarios (
@@ -104,10 +133,7 @@ class AuthController extends BaseController {
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
         RETURNING id, email, nome, data_nascimento, cargo, idade, 
                   id_gestor, id_departamento, id_cliente, perfil_acesso`,
-        [
-          email, hashedPassword, nome, data_nascimento, cargo, idade,
-          id_gestor, id_departamento, id_cliente, perfil_acesso
-        ]
+        insertData
       );
 
       const newUser = insertResult.rows[0];
@@ -143,6 +169,8 @@ class AuthController extends BaseController {
       }, 'Usuário criado com sucesso', 201);
 
     } catch (error) {
+      console.error('❌ Erro no registro:', error);
+      console.error('❌ Stack trace:', error.stack);
       return this.handleError(res, error, 'Erro ao criar usuário');
     }
   }
