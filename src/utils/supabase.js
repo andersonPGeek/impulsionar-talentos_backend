@@ -5,11 +5,12 @@ const getPoolConfig = () => {
   // Configuração para produção (Render) - Usar pooler do Supabase
   if (process.env.NODE_ENV === 'production') {
     return {
-      host: 'aws-0-sa-east-1.pooler.supabase.com',
+      //host: 'aws-0-sa-east-1.pooler.supabase.com',
+      host: 'aws-1-sa-east-1.pooler.supabase.com',
       port: 6543,
       database: 'postgres',
-      user: 'postgres.eyyaxdotkcwzogtksnol',
-      password: 'c2y4cbH0oFgYZkzJ',
+      user: 'postgres.fdopxrrcvbzhwszsluwm',
+      password: 't9Rgcvq8jlpYt7sG',
       ssl: {
         rejectUnauthorized: false,
         sslmode: 'require'
