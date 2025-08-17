@@ -10,7 +10,7 @@ const generateExampleEnv = () => {
   const jwtSecret = generateJWTSecret();
   
   return `# Configurações do Banco de Dados
-DATABASE_URL=postgresql://postgres:EWCWeoCTBbhWOK3T@db.fdopxrrcvbzhwszsluwm.supabase.co:5432/postgres
+DATABASE_URL=postgresql://postgres:t9Rgcvq8jlpYt7sG@db.fdopxrrcvbzhwszsluwm.supabase.co:5432/postgres
 
 # Configurações do Servidor
 PORT=3002

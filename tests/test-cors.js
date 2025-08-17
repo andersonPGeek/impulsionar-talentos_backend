@@ -13,7 +13,7 @@ async function testCORS() {
     
     // Teste 2: Teste de CORS com origin localhost:8080
     console.log('\n2️⃣ Testando CORS com origin localhost:8080...');
-    const corsResponse = await axios.get(`${baseURL}/api/auth`, {
+    const corsResponse = await axios.get(`${baseURL}/api/test`, {
       headers: {
         'Origin': 'http://localhost:8080'
       }

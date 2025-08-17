@@ -43,7 +43,7 @@ npm run generate-secret
 
 5. Edite o arquivo `.env` com suas configurações:
 ```env
-DATABASE_URL=postgresql://postgres:EWCWeoCTBbhWOK3T@db.fdopxrrcvbzhwszsluwm.supabase.co:5432/postgres
+DATABASE_URL=postgresql://postgres:t9Rgcvq8jlpYt7sG@db.fdopxrrcvbzhwszsluwm.supabase.co:5432/postgres
 PORT=3002
 JWT_SECRET=seu_jwt_secret_gerado
 NODE_ENV=development
@@ -122,6 +122,11 @@ O projeto pode ser deployado em qualquer plataforma que suporte Node.js:
 - `GET /api/auth/validate` - Validar token (protegido)
 - `POST /api/auth/change-password` - Alterar senha (protegido)
 
+### Perfil do Colaborador
+- `GET /api/perfil-colaborador/:id_usuario` - Buscar perfil do colaborador
+- `POST /api/perfil-colaborador` - Criar perfil do colaborador
+- `PUT /api/perfil-colaborador` - Atualizar perfil do colaborador
+
 ## 🏗️ Estrutura do Projeto
 
 ```
@@ -169,6 +174,15 @@ node tests/auth.test.js
 
 # Teste de banco de dados
 node tests/database.test.js
+
+# Teste de CORS
+node tests/test-cors.js
+
+# Teste de perfil de acesso
+node tests/test-perfil-acesso.js
+
+# Teste de perfil do colaborador
+node tests/test-perfil-colaborador.js
 
 # Teste com usuário real (configure as credenciais primeiro)
 node tests/auth.test.js --real-user

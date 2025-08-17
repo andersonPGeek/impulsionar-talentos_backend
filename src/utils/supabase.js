@@ -38,7 +38,7 @@ const getPoolConfig = () => {
     port: 5432,
     database: 'postgres',
     user: 'postgres',
-    password: 'EWCWeoCTBbhWOK3T',
+    password: 't9Rgcvq8jlpYt7sG',
     ssl: false,
     max: 20,
     idleTimeoutMillis: 30000,

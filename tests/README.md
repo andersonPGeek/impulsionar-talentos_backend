@@ -6,23 +6,34 @@ Esta pasta contém todos os arquivos de teste para as APIs do sistema.
 
 ```
 tests/
-├── README.md              # Esta documentação
-├── auth.test.js           # Testes da API de autenticação
-├── database.test.js       # Testes de conexão com banco
-└── utils/                 # Utilitários para testes
-    └── test-helper.js     # Funções auxiliares para testes
+├── README.md                    # Esta documentação
+├── auth.test.js                 # Testes da API de autenticação
+├── database.test.js             # Testes de conexão com banco
+├── test-cors.js                 # Testes de configuração CORS
+├── test-perfil-acesso.js        # Testes de perfil de acesso no login
+├── test-perfil-colaborador.js   # Testes da API de perfil do colaborador
+└── utils/                       # Utilitários para testes
+    └── test-helper.js           # Funções auxiliares para testes
 ```
 
 ## 🧪 Como Executar Testes
 
 ### Teste Individual
 ```bash
+# Teste de autenticação
 node tests/auth.test.js
-```
 
-### Teste de Conexão com Banco
-```bash
+# Teste de banco de dados
 node tests/database.test.js
+
+# Teste de CORS
+node tests/test-cors.js
+
+# Teste de perfil de acesso
+node tests/test-perfil-acesso.js
+
+# Teste de perfil do colaborador
+node tests/test-perfil-colaborador.js
 ```
 
 ## 📋 Padrões para Novos Testes
@@ -81,6 +92,17 @@ Certifique-se de que o servidor está rodando antes de executar os testes:
 ```bash
 npm run dev
 ```
+
+## 📝 Tipos de Testes
+
+### Testes de Funcionalidade
+- **`auth.test.js`** - Testa APIs de autenticação (login, registro, validação de token)
+- **`database.test.js`** - Testa conexão com banco de dados e estrutura das tabelas
+- **`test-perfil-colaborador.js`** - Testa APIs de perfil do colaborador (CRUD completo)
+
+### Testes de Configuração
+- **`test-cors.js`** - Verifica se a configuração CORS está funcionando corretamente
+- **`test-perfil-acesso.js`** - Testa se o campo `perfil_acesso` está sendo retornado no login
 
 ## 📝 Exemplos
 
