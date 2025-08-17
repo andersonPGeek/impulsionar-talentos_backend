@@ -2,16 +2,21 @@ const { Pool } = require('pg');
 
 // Configuração do pool de conexões para Supabase
 const getPoolConfig = () => {
-  // Configuração para produção (Render)
+  // Configuração para produção (Render) - Usar pooler do Supabase
   if (process.env.NODE_ENV === 'production') {
     return {
-      connectionString: process.env.DATABASE_URL,
+      host: 'aws-0-sa-east-1.pooler.supabase.com',
+      port: 6543,
+      database: 'postgres',
+      user: 'postgres.eyyaxdotkcwzogtksnol',
+      password: 'c2y4cbH0oFgYZkzJ',
       ssl: {
-        rejectUnauthorized: false
+        rejectUnauthorized: false,
+        sslmode: 'require'
       },
-      max: 10,
+      max: 20,
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 15000
+      connectionTimeoutMillis: 5000
     };
   }
   
@@ -26,7 +31,7 @@ const getPoolConfig = () => {
     };
   }
   
-  // Fallback para configuração manual
+  // Fallback para configuração manual local
   return {
     host: 'db.fdopxrrcvbzhwszsluwm.supabase.co',
     port: 5432,

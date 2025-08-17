@@ -132,16 +132,35 @@ O erro `ENETUNREACH` com endereço IPv6 indica problemas de conectividade entre 
    - ✅ Código de erro exibido
    - ✅ Dicas de troubleshooting
 
-**Status:** ✅ **RESOLVIDO** - O projeto agora usa o padrão `utils/supabase.js` que funciona no Render
+**Status:** ✅ **RESOLVIDO** - O projeto agora usa o pooler do Supabase que funciona no Render
 
 ### Solução Implementada
 
-O problema foi resolvido seguindo o padrão do projeto que já funciona no Render:
+O problema foi resolvido usando o **pooler do Supabase** em vez da conexão direta:
 
-1. **Arquivo `utils/supabase.js`** - Configuração específica para Supabase
-2. **Configuração SSL simples** - `rejectUnauthorized: false` apenas em produção
-3. **Padrão testado** - Usando a mesma estrutura do projeto que funciona
-4. **Fallback robusto** - Configuração manual para desenvolvimento local
+1. **Pooler do Supabase** - `aws-0-sa-east-1.pooler.supabase.com:6543`
+2. **Credenciais específicas** - `postgres.eyyaxdotkcwzogtksnol` / `c2y4cbH0oFgYZkzJ`
+3. **Configuração SSL correta** - `sslmode: 'require'` para pooler
+4. **Configuração condicional** - Pooler para produção, conexão direta para desenvolvimento
+
+### Por que o Pooler Resolve o Problema?
+
+O erro `ENETUNREACH` com IPv6 ocorria porque:
+
+- **Conexão direta** (`db.fdopxrrcvbzhwszsluwm.supabase.co:5432`) usa IPv6
+- **Pooler do Supabase** (`aws-0-sa-east-1.pooler.supabase.com:6543`) usa IPv4
+- **Render** tem problemas de conectividade IPv6 com Supabase
+- **Pooler** é otimizado para conexões externas e funciona perfeitamente
+
+### Diferenças de Configuração
+
+| Aspecto | Conexão Direta | Pooler |
+|---------|----------------|--------|
+| **Host** | `db.fdopxrrcvbzhwszsluwm.supabase.co` | `aws-0-sa-east-1.pooler.supabase.com` |
+| **Porta** | `5432` | `6543` |
+| **Usuário** | `postgres` | `postgres.eyyaxdotkcwzogtksnol` |
+| **SSL** | `rejectUnauthorized: false` | `sslmode: 'require'` |
+| **IPv6** | ❌ Problemas | ✅ IPv4 apenas |
 
 ### Erro: Build Failed
 
