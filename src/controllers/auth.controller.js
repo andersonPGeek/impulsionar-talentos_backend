@@ -18,11 +18,31 @@ class AuthController extends BaseController {
     try {
       const { email, senha } = req.body;
 
+      // Primeiro, verificar quais colunas existem na tabela
+      const columnsResult = await query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'usuarios' 
+        AND column_name IN ('id', 'email', 'senha', 'data_nascimento', 'id_gestor', 'id_departamento')
+        ORDER BY column_name;
+      `);
+      
+      const availableColumns = columnsResult.rows.map(row => row.column_name);
+      console.log('📋 Colunas disponíveis na tabela usuarios:', availableColumns);
+
+      // Construir query dinamicamente baseada nas colunas disponíveis
+      const selectColumns = ['id', 'email', 'senha'];
+      
+      if (availableColumns.includes('data_nascimento')) selectColumns.push('data_nascimento');
+      if (availableColumns.includes('id_gestor')) selectColumns.push('id_gestor');
+      if (availableColumns.includes('id_departamento')) selectColumns.push('id_departamento');
+
+      const queryText = `SELECT ${selectColumns.join(', ')} FROM usuarios WHERE email = $1`;
+      console.log('🔍 Query de login:', queryText);
+
       // Buscar usuário pelo email
-      const userResult = await query(
-        'SELECT id, email, senha, data_nascimento, id_gestor, id_departamento FROM usuarios WHERE email = $1',
-        [email]
-      );
+      const userResult = await query(queryText, [email]);
 
       if (userResult.rows.length === 0) {
         return ApiResponse.unauthorized(res, 'Email ou senha inválidos');
@@ -50,11 +70,13 @@ class AuthController extends BaseController {
       // Retornar dados do usuário (sem a senha) e token
       const userData = {
         id: user.id,
-        email: user.email,
-        data_nascimento: user.data_nascimento,
-        id_gestor: user.id_gestor,
-        id_departamento: user.id_departamento
+        email: user.email
       };
+
+      // Adicionar campos opcionais se existirem
+      if (user.data_nascimento !== undefined) userData.data_nascimento = user.data_nascimento;
+      if (user.id_gestor !== undefined) userData.id_gestor = user.id_gestor;
+      if (user.id_departamento !== undefined) userData.id_departamento = user.id_departamento;
 
       return ApiResponse.success(res, {
         user: userData,
@@ -109,32 +131,75 @@ class AuthController extends BaseController {
       // Criptografar senha com bcrypt (salt rounds = 10)
       const hashedPassword = await bcrypt.hash(senha, 10);
 
-      // Preparar dados para inserção (tratar valores null/undefined)
-      const insertData = [
-        email, 
-        hashedPassword, 
-        nome || null, 
-        data_nascimento || null, 
-        cargo || null, 
-        idade || null,
-        id_gestor || null, 
-        id_departamento || null, 
-        id_cliente || null, 
-        perfil_acesso || null
-      ];
+      // Verificar quais colunas existem na tabela para inserção
+      const insertColumnsResult = await query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'usuarios' 
+        AND column_name IN ('email', 'senha', 'nome', 'data_nascimento', 'cargo', 'idade', 'id_gestor', 'id_departamento', 'id_cliente', 'perfil_acesso')
+        ORDER BY column_name;
+      `);
+      
+      const availableInsertColumns = insertColumnsResult.rows.map(row => row.column_name);
+      console.log('📋 Colunas disponíveis para inserção:', availableInsertColumns);
 
-      console.log('📝 Dados preparados para inserção:', insertData);
+      // Construir query de inserção dinamicamente
+      const insertColumns = ['email', 'senha'];
+      const insertValues = [email, hashedPassword];
+      let paramCount = 2;
+
+      if (availableInsertColumns.includes('nome')) {
+        insertColumns.push('nome');
+        insertValues.push(nome || null);
+        paramCount++;
+      }
+      if (availableInsertColumns.includes('data_nascimento')) {
+        insertColumns.push('data_nascimento');
+        insertValues.push(data_nascimento || null);
+        paramCount++;
+      }
+      if (availableInsertColumns.includes('cargo')) {
+        insertColumns.push('cargo');
+        insertValues.push(cargo || null);
+        paramCount++;
+      }
+      if (availableInsertColumns.includes('idade')) {
+        insertColumns.push('idade');
+        insertValues.push(idade || null);
+        paramCount++;
+      }
+      if (availableInsertColumns.includes('id_gestor')) {
+        insertColumns.push('id_gestor');
+        insertValues.push(id_gestor || null);
+        paramCount++;
+      }
+      if (availableInsertColumns.includes('id_departamento')) {
+        insertColumns.push('id_departamento');
+        insertValues.push(id_departamento || null);
+        paramCount++;
+      }
+      if (availableInsertColumns.includes('id_cliente')) {
+        insertColumns.push('id_cliente');
+        insertValues.push(id_cliente || null);
+        paramCount++;
+      }
+      if (availableInsertColumns.includes('perfil_acesso')) {
+        insertColumns.push('perfil_acesso');
+        insertValues.push(perfil_acesso || null);
+        paramCount++;
+      }
+
+      console.log('📝 Dados preparados para inserção:', insertValues);
+
+      // Construir query de inserção
+      const placeholders = insertValues.map((_, index) => `$${index + 1}`).join(', ');
+      const insertQuery = `INSERT INTO usuarios (${insertColumns.join(', ')}) VALUES (${placeholders}) RETURNING id, email`;
+      
+      console.log('🔍 Query de inserção:', insertQuery);
 
       // Inserir novo usuário
-      const insertResult = await query(
-        `INSERT INTO usuarios (
-          email, senha, nome, data_nascimento, cargo, idade, 
-          id_gestor, id_departamento, id_cliente, perfil_acesso
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
-        RETURNING id, email, nome, data_nascimento, cargo, idade, 
-                  id_gestor, id_departamento, id_cliente, perfil_acesso`,
-        insertData
-      );
+      const insertResult = await query(insertQuery, insertValues);
 
       const newUser = insertResult.rows[0];
 
@@ -151,16 +216,18 @@ class AuthController extends BaseController {
       // Retornar dados do usuário (sem a senha) e token
       const userData = {
         id: newUser.id,
-        email: newUser.email,
-        nome: newUser.nome,
-        data_nascimento: newUser.data_nascimento,
-        cargo: newUser.cargo,
-        idade: newUser.idade,
-        id_gestor: newUser.id_gestor,
-        id_departamento: newUser.id_departamento,
-        id_cliente: newUser.id_cliente,
-        perfil_acesso: newUser.perfil_acesso
+        email: newUser.email
       };
+
+      // Adicionar campos opcionais se existirem no resultado
+      if (newUser.nome !== undefined) userData.nome = newUser.nome;
+      if (newUser.data_nascimento !== undefined) userData.data_nascimento = newUser.data_nascimento;
+      if (newUser.cargo !== undefined) userData.cargo = newUser.cargo;
+      if (newUser.idade !== undefined) userData.idade = newUser.idade;
+      if (newUser.id_gestor !== undefined) userData.id_gestor = newUser.id_gestor;
+      if (newUser.id_departamento !== undefined) userData.id_departamento = newUser.id_departamento;
+      if (newUser.id_cliente !== undefined) userData.id_cliente = newUser.id_cliente;
+      if (newUser.perfil_acesso !== undefined) userData.perfil_acesso = newUser.perfil_acesso;
 
       return ApiResponse.success(res, {
         user: userData,
