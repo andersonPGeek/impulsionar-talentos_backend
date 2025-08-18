@@ -31,13 +31,8 @@ class SabotadoresController extends BaseController {
           perguntas_sabotadores ps
         JOIN 
           sabotadores s ON ps.id_sabotador = s.id
-        LEFT JOIN 
-          respostas_sabotadores rs 
-          ON ps.id = rs.id_pergunta AND rs.id_usuario = $1
-        WHERE 
-          rs.id IS NULL
         ORDER BY ps.id
-      `, [id_usuario]);
+      `);
 
       return ApiResponse.success(res, {
         id_usuario: parseInt(id_usuario),
@@ -89,7 +84,7 @@ class SabotadoresController extends BaseController {
           if (existingResponse.rows.length > 0) {
             // Atualizar resposta existente
             await query(
-              'UPDATE respostas_sabotadores SET resposta = $1, updated_at = NOW() WHERE id_usuario = $2 AND id_pergunta = $3',
+              'UPDATE respostas_sabotadores SET resposta = $1 WHERE id_usuario = $2 AND id_pergunta = $3',
               [resposta.resposta, id_usuario, resposta.id_pergunta]
             );
           } else {
@@ -242,7 +237,7 @@ class SabotadoresController extends BaseController {
         // Atualizar resultado existente
         await query(`
           UPDATE resultado_sabotadores 
-          SET pontuacao = $1, nivel = $2, id_descricao_sabotadores = $3, updated_at = NOW()
+          SET pontuacao = $1, nivel = $2, id_descricao_sabotadores = $3
           WHERE id_usuario = $4 AND id_sabotador = $5
         `, [pontuacao, nivel, id_descricao_sabotadores, id_usuario, media.id_sabotador]);
       } else {
@@ -254,12 +249,22 @@ class SabotadoresController extends BaseController {
       }
     }
 
-    // Atualizar id_resultado_sabotadores na tabela perfil_colaborador
-    await query(`
-      UPDATE perfil_colaborador 
-      SET id_resultado_sabotadores = $1 
-      WHERE id_usuario = $2
-    `, [id_usuario, id_usuario]);
+    // Buscar o id do resultado de sabotadores para atualizar o perfil_colaborador
+    const resultadoSabotadoresResult = await query(
+      'SELECT id FROM resultado_sabotadores WHERE id_usuario = $1 LIMIT 1',
+      [id_usuario]
+    );
+
+    if (resultadoSabotadoresResult.rows.length > 0) {
+      const resultadoId = resultadoSabotadoresResult.rows[0].id;
+      
+      // Atualizar id_resultado_sabotadores na tabela perfil_colaborador
+      await query(`
+        UPDATE perfil_colaborador 
+        SET id_resultado_sabotadores = $1 
+        WHERE id_usuario = $2
+      `, [resultadoId, id_usuario]);
+    }
   }
 }
 
