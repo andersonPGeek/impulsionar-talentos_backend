@@ -6,6 +6,7 @@ const authRoutes = require('./auth.routes');
 const perfilColaboradorRoutes = require('./perfil_colaborador.routes');
 const sabotadoresRoutes = require('./sabotadores.routes');
 const personalidadeRoutes = require('./personalidade.routes');
+const arvoreDaVidaRoutes = require('./arvore_da_vida.routes');
 // const usuariosRoutes = require('./usuarios.routes');
 // const talentosRoutes = require('./talentos.routes');
 
@@ -19,6 +20,7 @@ router.get('/test', (req, res) => {
       perfilColaborador: '/api/perfil-colaborador',
       sabotadores: '/api/sabotadores',
       personalidade: '/api/personalidade',
+      arvoreDaVida: '/api/arvore-da-vida',
       usuarios: '/api/usuarios',
       talentos: '/api/talentos'
     }
@@ -30,6 +32,7 @@ router.use('/auth', authRoutes);
 router.use('/perfil-colaborador', perfilColaboradorRoutes);
 router.use('/sabotadores', sabotadoresRoutes);
 router.use('/personalidade', personalidadeRoutes);
+router.use('/arvore-da-vida', arvoreDaVidaRoutes);
 // router.use('/usuarios', usuariosRoutes);
 // router.use('/talentos', talentosRoutes);
 

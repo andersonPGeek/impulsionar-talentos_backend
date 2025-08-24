@@ -137,6 +137,11 @@ O projeto pode ser deployado em qualquer plataforma que suporte Node.js:
 - `POST /api/personalidade/respostas` - Salvar respostas das perguntas
 - `GET /api/personalidade/:id_usuario/resultado` - Buscar resultado da personalidade
 
+### Árvore da Vida
+- `GET /api/arvore-da-vida/:id_usuario` - Buscar árvore da vida do usuário
+- `POST /api/arvore-da-vida` - Criar árvore da vida
+- `PUT /api/arvore-da-vida` - Atualizar árvore da vida
+
 ## 🏗️ Estrutura do Projeto
 
 ```
@@ -200,6 +205,9 @@ node tests/test-sabotadores.js
 # Teste de personalidade MBTI
 node tests/test-personalidade.js
 
+# Teste de árvore da vida
+node tests/test-arvore-da-vida.js
+
 # Teste com usuário real (configure as credenciais primeiro)
 node tests/auth.test.js --real-user
 ```
@@ -249,8 +257,9 @@ A API utiliza padrões consistentes de resposta:
 - [API de Perfil do Colaborador](PERFIL_COLABORADOR_API.md)
 - [API de Sabotadores](SABOTADORES_API.md)
 - [API de Personalidade MBTI](PERSONALIDADE_API.md)
+- [API de Árvore da Vida](ARVORE_DA_VIDA_API.md)
 - [Guia de Deploy](DEPLOY.md)
 
 ## 📄 Licença
 
-Este projeto está sob a licença MIT. 
+Este projeto está sob a licença MIT.

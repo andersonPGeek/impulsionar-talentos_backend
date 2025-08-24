@@ -14,6 +14,7 @@ tests/
 ├── test-perfil-colaborador.js   # Testes da API de perfil do colaborador
 ├── test-sabotadores.js          # Testes da API de sabotadores
 ├── test-personalidade.js        # Testes da API de personalidade MBTI
+├── test-arvore-da-vida.js       # Testes da API de árvore da vida
 └── utils/                       # Utilitários para testes
     └── test-helper.js           # Funções auxiliares para testes
 ```
@@ -42,6 +43,10 @@ node tests/test-sabotadores.js
 
 # Teste de personalidade MBTI
 node tests/test-personalidade.js
+
+# Teste de árvore da vida
+node tests/test-arvore-da-vida.js
+```
 
 ## 📋 Padrões para Novos Testes
 
@@ -108,6 +113,7 @@ npm run dev
 - **`test-perfil-colaborador.js`** - Testa APIs de perfil do colaborador (CRUD completo)
 - **`test-sabotadores.js`** - Testa APIs de sabotadores (perguntas, respostas, resultado)
 - **`test-personalidade.js`** - Testa APIs de personalidade MBTI (perguntas, respostas, resultado)
+- **`test-arvore-da-vida.js`** - Testa APIs de árvore da vida (criar, buscar, atualizar)
 
 ### Testes de Configuração
 - **`test-cors.js`** - Verifica se a configuração CORS está funcionando corretamente
@@ -148,4 +154,4 @@ try {
     console.log('✅ Validação funcionando');
   }
 }
-``` 
+```
