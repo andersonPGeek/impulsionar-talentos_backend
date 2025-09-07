@@ -237,3 +237,4 @@ class ArvoreDaVidaController extends BaseController {
 }
 
 module.exports = new ArvoreDaVidaController();
+

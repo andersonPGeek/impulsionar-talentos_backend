@@ -309,3 +309,4 @@ A API inclui logs detalhados para facilitar o debug:
 3. **Validação Robusta**: Validação completa de todos os campos obrigatórios
 4. **Flexibilidade**: Suporte para criação e atualização com o mesmo endpoint
 5. **Padrão de Resposta**: Respostas padronizadas seguindo o padrão da API
+

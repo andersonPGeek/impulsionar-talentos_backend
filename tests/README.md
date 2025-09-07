@@ -15,6 +15,7 @@ tests/
 ├── test-sabotadores.js          # Testes da API de sabotadores
 ├── test-personalidade.js        # Testes da API de personalidade MBTI
 ├── test-arvore-da-vida.js       # Testes da API de árvore da vida
+├── test-analise-swot.js         # Testes da API de análise SWOT
 └── utils/                       # Utilitários para testes
     └── test-helper.js           # Funções auxiliares para testes
 ```
@@ -46,6 +47,9 @@ node tests/test-personalidade.js
 
 # Teste de árvore da vida
 node tests/test-arvore-da-vida.js
+
+# Teste de análise SWOT
+node tests/test-analise-swot.js
 ```
 
 ## 📋 Padrões para Novos Testes
@@ -114,6 +118,7 @@ npm run dev
 - **`test-sabotadores.js`** - Testa APIs de sabotadores (perguntas, respostas, resultado)
 - **`test-personalidade.js`** - Testa APIs de personalidade MBTI (perguntas, respostas, resultado)
 - **`test-arvore-da-vida.js`** - Testa APIs de árvore da vida (criar, buscar, atualizar)
+- **`test-analise-swot.js`** - Testa APIs de análise SWOT (salvar, buscar, atualizar por categoria)
 
 ### Testes de Configuração
 - **`test-cors.js`** - Verifica se a configuração CORS está funcionando corretamente

@@ -142,6 +142,10 @@ O projeto pode ser deployado em qualquer plataforma que suporte Node.js:
 - `POST /api/arvore-da-vida` - Criar árvore da vida
 - `PUT /api/arvore-da-vida` - Atualizar árvore da vida
 
+### Análise SWOT
+- `GET /api/analise-swot/:id_usuario` - Buscar análise SWOT do usuário
+- `POST /api/analise-swot` - Salvar/atualizar análise SWOT
+
 ## 🏗️ Estrutura do Projeto
 
 ```
@@ -208,6 +212,9 @@ node tests/test-personalidade.js
 # Teste de árvore da vida
 node tests/test-arvore-da-vida.js
 
+# Teste de análise SWOT
+node tests/test-analise-swot.js
+
 # Teste com usuário real (configure as credenciais primeiro)
 node tests/auth.test.js --real-user
 ```
@@ -258,6 +265,7 @@ A API utiliza padrões consistentes de resposta:
 - [API de Sabotadores](SABOTADORES_API.md)
 - [API de Personalidade MBTI](PERSONALIDADE_API.md)
 - [API de Árvore da Vida](ARVORE_DA_VIDA_API.md)
+- [API de Análise SWOT](ANALISE_SWOT_API.md)
 - [Guia de Deploy](DEPLOY.md)
 
 ## 📄 Licença
