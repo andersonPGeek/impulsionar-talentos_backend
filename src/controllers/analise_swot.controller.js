@@ -210,3 +210,10 @@ class AnaliseSwotController extends BaseController {
 }
 
 module.exports = new AnaliseSwotController();
+
+
+
+
+
+
+

@@ -8,6 +8,7 @@ const sabotadoresRoutes = require('./sabotadores.routes');
 const personalidadeRoutes = require('./personalidade.routes');
 const arvoreDaVidaRoutes = require('./arvore_da_vida.routes');
 const analiseSwotRoutes = require('./analise_swot.routes');
+const portifolioRoutes = require('./portifolio.routes');
 // const usuariosRoutes = require('./usuarios.routes');
 // const talentosRoutes = require('./talentos.routes');
 
@@ -23,6 +24,7 @@ router.get('/test', (req, res) => {
       personalidade: '/api/personalidade',
       arvoreDaVida: '/api/arvore-da-vida',
       analiseSwot: '/api/analise-swot',
+      portifolio: '/api/portifolio',
       usuarios: '/api/usuarios',
       talentos: '/api/talentos'
     }
@@ -36,6 +38,7 @@ router.use('/sabotadores', sabotadoresRoutes);
 router.use('/personalidade', personalidadeRoutes);
 router.use('/arvore-da-vida', arvoreDaVidaRoutes);
 router.use('/analise-swot', analiseSwotRoutes);
+router.use('/portifolio', portifolioRoutes);
 // router.use('/usuarios', usuariosRoutes);
 // router.use('/talentos', talentosRoutes);
 

@@ -406,3 +406,10 @@ A API implementa uma lógica de **substituição por categoria**:
 - Fraquezas: [] (limpo)
 - Oportunidades: (inalterado)
 - Ameaças: (inalterado)
+
+
+
+
+
+
+

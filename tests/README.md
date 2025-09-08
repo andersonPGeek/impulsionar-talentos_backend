@@ -16,6 +16,7 @@ tests/
 ├── test-personalidade.js        # Testes da API de personalidade MBTI
 ├── test-arvore-da-vida.js       # Testes da API de árvore da vida
 ├── test-analise-swot.js         # Testes da API de análise SWOT
+├── test-portifolio.js           # Testes da API de portfólio
 └── utils/                       # Utilitários para testes
     └── test-helper.js           # Funções auxiliares para testes
 ```
@@ -50,6 +51,9 @@ node tests/test-arvore-da-vida.js
 
 # Teste de análise SWOT
 node tests/test-analise-swot.js
+
+# Teste de portfólio
+node tests/test-portifolio.js
 ```
 
 ## 📋 Padrões para Novos Testes

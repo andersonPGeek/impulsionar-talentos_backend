@@ -5,9 +5,20 @@ const validateRequest = (req, res, next) => {
   const errors = validationResult(req);
   
   if (!errors.isEmpty()) {
+    const firstError = errors.array()[0];
     return res.status(400).json({
-      error: 'Dados inválidos',
-      message: 'Verifique os campos enviados',
+      success: false,
+      error: firstError.msg.includes('ID do usuário') ? 'MISSING_USER_ID' : 
+             firstError.msg.includes('Experiências são obrigatórias') ? 'MISSING_EXPERIENCIAS' :
+             firstError.msg.includes('Experiências devem ser enviadas') ? 'MISSING_EXPERIENCIAS' :
+             firstError.msg.includes('título é obrigatório') ? 'INCOMPLETE_EXPERIENCIA' :
+             firstError.msg.includes('data é obrigatória') ? 'INCOMPLETE_EXPERIENCIA' :
+             firstError.msg.includes('ação realizada é obrigatória') ? 'INCOMPLETE_EXPERIENCIA' :
+             firstError.msg.includes('resultado entregue é obrigatório') ? 'INCOMPLETE_EXPERIENCIA' :
+             firstError.msg.includes('incompleta') ? 'INCOMPLETE_EXPERIENCIA' : 
+             firstError.msg.includes('Formato de experiências') ? 'INVALID_EXPERIENCIAS_FORMAT' :
+             firstError.msg.includes('obrigatório') ? 'MISSING_EXPERIENCIAS' : 'VALIDATION_ERROR',
+      message: firstError.msg,
       details: errors.array().map(error => ({
         field: error.path,
         message: error.msg,

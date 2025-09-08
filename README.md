@@ -146,6 +146,10 @@ O projeto pode ser deployado em qualquer plataforma que suporte Node.js:
 - `GET /api/analise-swot/:id_usuario` - Buscar análise SWOT do usuário
 - `POST /api/analise-swot` - Salvar/atualizar análise SWOT
 
+### Portfólio
+- `GET /api/portifolio/:id_usuario` - Buscar portfólio do usuário
+- `POST /api/portifolio` - Salvar portfólio com experiências, materiais, links e feedbacks
+
 ## 🏗️ Estrutura do Projeto
 
 ```
@@ -214,6 +218,9 @@ node tests/test-arvore-da-vida.js
 
 # Teste de análise SWOT
 node tests/test-analise-swot.js
+
+# Teste de portfólio
+node tests/test-portifolio.js
 
 # Teste com usuário real (configure as credenciais primeiro)
 node tests/auth.test.js --real-user
