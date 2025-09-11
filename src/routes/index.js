@@ -9,7 +9,9 @@ const personalidadeRoutes = require('./personalidade.routes');
 const arvoreDaVidaRoutes = require('./arvore_da_vida.routes');
 const analiseSwotRoutes = require('./analise_swot.routes');
 const portifolioRoutes = require('./portifolio.routes');
-// const usuariosRoutes = require('./usuarios.routes');
+const metasRoutes = require('./metas.routes');
+const usuariosRoutes = require('./usuarios.routes');
+const dashboardRoutes = require('./dashboard.routes');
 // const talentosRoutes = require('./talentos.routes');
 
 // Rota de teste da API
@@ -25,7 +27,9 @@ router.get('/test', (req, res) => {
       arvoreDaVida: '/api/arvore-da-vida',
       analiseSwot: '/api/analise-swot',
       portifolio: '/api/portifolio',
+      metas: '/api/metas',
       usuarios: '/api/usuarios',
+      dashboard: '/api/dashboard',
       talentos: '/api/talentos'
     }
   });
@@ -39,7 +43,9 @@ router.use('/personalidade', personalidadeRoutes);
 router.use('/arvore-da-vida', arvoreDaVidaRoutes);
 router.use('/analise-swot', analiseSwotRoutes);
 router.use('/portifolio', portifolioRoutes);
-// router.use('/usuarios', usuariosRoutes);
+router.use('/metas', metasRoutes);
+router.use('/usuarios', usuariosRoutes);
+router.use('/dashboard', dashboardRoutes);
 // router.use('/talentos', talentosRoutes);
 
 module.exports = router; 

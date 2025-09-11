@@ -8,7 +8,15 @@ const validateRequest = (req, res, next) => {
     const firstError = errors.array()[0];
     return res.status(400).json({
       success: false,
-      error: firstError.msg.includes('ID do usuário') ? 'MISSING_USER_ID' : 
+      error: firstError.msg.includes('ID do usuário é obrigatório') ? 'MISSING_USER_ID' : 
+             firstError.msg.includes('Título da meta é obrigatório') ? 'MISSING_TITULO' :
+             firstError.msg.includes('Array de atividades é obrigatório') ? 'MISSING_ATIVIDADES' :
+             firstError.msg.includes('Data de vencimento é obrigatória') ? 'MISSING_DATA_VENCIMENTO' :
+             firstError.msg.includes('Status é obrigatório') ? 'MISSING_STATUS' :
+             firstError.msg.includes('Array de usuários envolvidos é obrigatório') ? 'MISSING_USUARIOS' :
+                    firstError.msg.includes('Status deve ser:') ? 'INVALID_STATUS' :
+                    firstError.msg.includes('Status da atividade é obrigatório') ? 'MISSING_STATUS' :
+                    firstError.msg.includes('Status deve ser: backlog, em_progresso, concluida ou cancelada') ? 'INVALID_STATUS' :
              firstError.msg.includes('Experiências são obrigatórias') ? 'MISSING_EXPERIENCIAS' :
              firstError.msg.includes('Experiências devem ser enviadas') ? 'MISSING_EXPERIENCIAS' :
              firstError.msg.includes('título é obrigatório') ? 'INCOMPLETE_EXPERIENCIA' :

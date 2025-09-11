@@ -38,8 +38,10 @@ class AnaliseSwotController extends BaseController {
           return ApiResponse.validationError(res, 'Cada categoria deve ter id_categoria_swot e textos (array)');
         }
 
+        const idCategoria = Number(categoria.id_categoria_swot);
+
         // Validar se a categoria existe
-        if (![1, 2, 3, 4].includes(categoria.id_categoria_swot)) {
+        if (![1, 2, 3, 4].includes(idCategoria)) {
           console.log('❌ [ANALISE_SWOT] Categoria inválida:', categoria.id_categoria_swot);
           return ApiResponse.validationError(res, 'id_categoria_swot deve ser 1, 2, 3 ou 4');
         }
