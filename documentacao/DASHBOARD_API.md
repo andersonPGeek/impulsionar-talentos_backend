@@ -738,6 +738,95 @@ Authorization: Bearer <token>
 
 ---
 
+### 5. Buscar Dashboard de Gestão de RH
+
+Busca informações consolidadas do dashboard de gestão de RH, incluindo total de colaboradores, gestores ativos, metas concluídas/abertas e progresso por departamento e gestor.
+
+**Endpoint:** `GET /api/dashboard/rh`
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**Resposta de Sucesso (200):**
+```json
+{
+  "success": true,
+  "message": "Dashboard de RH buscado com sucesso",
+  "data": {
+    "total_colaboradores": 45,
+    "gestores_ativos": 8,
+    "metas_concluidas": 23,
+    "metas_abertas": 17,
+    "metas_departamento": [
+      {
+        "departamento": "Desenvolvimento",
+        "progresso_das_metas": "75% (12/16)"
+      },
+      {
+        "departamento": "Marketing",
+        "progresso_das_metas": "60% (6/10)"
+      },
+      {
+        "departamento": "Vendas",
+        "progresso_das_metas": "80% (8/10)"
+      }
+    ],
+    "metas_gestor": [
+      {
+        "gestor": "Ana Silva",
+        "progresso_das_metas": "85% (11/13)"
+      },
+      {
+        "gestor": "Carlos Santos",
+        "progresso_das_metas": "70% (7/10)"
+      },
+      {
+        "gestor": "Maria Costa",
+        "progresso_das_metas": "90% (9/10)"
+      }
+    ]
+  }
+}
+```
+
+**Resposta de Erro (500):**
+```json
+{
+  "success": false,
+  "error": "INTERNAL_ERROR",
+  "message": "Erro interno do servidor"
+}
+```
+
+**Campos de Resposta do Dashboard de RH:**
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| `total_colaboradores` | integer | Total de usuários cadastrados no sistema |
+| `gestores_ativos` | integer | Quantidade de usuários que são gestores de outros usuários |
+| `metas_concluidas` | integer | Total de metas com status "Concluida" (C maiúsculo) |
+| `metas_abertas` | integer | Total de metas com status diferente de "Concluida" |
+| `metas_departamento` | array | Progresso das metas agrupado por departamento |
+| `metas_gestor` | array | Progresso das metas agrupado por gestor |
+
+**Campos de Metas por Departamento:**
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| `departamento` | string | Nome do departamento |
+| `progresso_das_metas` | string | Progresso no formato "XX% (concluídas/total)" |
+
+**Campos de Metas por Gestor:**
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| `gestor` | string | Nome do gestor |
+| `progresso_das_metas` | string | Progresso no formato "XX% (concluídas/total)" |
+
+---
+
 ## Exemplos de Uso
 
 ### Exemplo 1: Buscar Dashboard de Gestão
@@ -768,7 +857,14 @@ curl -X GET http://localhost:3002/api/dashboard/portifolio/1 \
   -H "Authorization: Bearer <token>"
 ```
 
-### Exemplo 5: Buscar Dashboard de Gestor Inexistente
+### Exemplo 5: Buscar Dashboard de RH
+
+```bash
+curl -X GET http://localhost:3002/api/dashboard/rh \
+  -H "Authorization: Bearer <token>"
+```
+
+### Exemplo 6: Buscar Dashboard de Gestor Inexistente
 
 ```bash
 curl -X GET http://localhost:3002/api/dashboard/gestor/99999 \
@@ -827,6 +923,13 @@ Os testes incluem:
 - ✅ Validar tipos de dados e formato das datas
 - ✅ Confirmar consistência entre contadores e experiências
 
+**Testes de Dashboard de RH (GET /rh):**
+- ✅ Buscar dashboard de RH com dados válidos
+- ✅ Validar cálculos de colaboradores, gestores e metas
+- ✅ Verificar estrutura detalhada dos dados por departamento e gestor
+- ✅ Validar tipos de dados e formato do progresso
+- ✅ Confirmar coerência entre totais e progressos individuais
+
 ---
 
 ## Notas Importantes
@@ -855,6 +958,10 @@ Os testes incluem:
 
 12. **Múltiplos Feedbacks/Links:** Quando uma experiência possui múltiplos feedbacks ou links, eles são concatenados com "; " como separador.
 
+13. **Dashboard de RH:** Não requer parâmetros e fornece uma visão geral de toda a organização.
+
+14. **Progresso das Metas:** Calculado como (metas concluídas / total de metas) * 100, formatado como "XX% (Y/Z)".
+
 ---
 
 ## Próximas Implementações
@@ -863,6 +970,7 @@ Os testes incluem:
 - [x] API GET para árvore da vida da equipe por gestor
 - [x] API GET para análise SWOT da equipe por gestor
 - [x] API GET para portfólio da equipe por gestor
+- [x] API GET para dashboard de gestão de RH
 - [ ] API GET para dashboard comparativo entre gestores
 - [ ] API GET para métricas históricas da equipe
 - [ ] API GET para ranking de performance da equipe

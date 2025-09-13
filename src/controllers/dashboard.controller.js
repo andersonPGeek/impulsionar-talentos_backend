@@ -729,6 +729,135 @@ class DashboardController extends BaseController {
       client.release();
     }
   }
+
+  /**
+   * Buscar dashboard de gestão de RH
+   * GET /api/dashboard/rh
+   */
+  async buscarDashboardRH(req, res) {
+    const client = await pool.connect();
+    
+    try {
+      logger.info('Iniciando busca de dashboard de RH');
+
+      // 1. Buscar total de colaboradores
+      const totalColaboradoresQuery = `
+        SELECT COUNT(*) as total_colaboradores
+        FROM usuarios
+        WHERE id IS NOT NULL
+      `;
+      const totalColaboradoresResult = await client.query(totalColaboradoresQuery);
+      const totalColaboradores = parseInt(totalColaboradoresResult.rows[0].total_colaboradores) || 0;
+
+      // 2. Buscar gestores ativos (usuários que são gestores de outros usuários)
+      const gestoresAtivosQuery = `
+        SELECT COUNT(DISTINCT id_gestor) as gestores_ativos
+        FROM usuarios
+        WHERE id_gestor IS NOT NULL
+      `;
+      const gestoresAtivosResult = await client.query(gestoresAtivosQuery);
+      const gestoresAtivos = parseInt(gestoresAtivosResult.rows[0].gestores_ativos) || 0;
+
+      // 3. Buscar metas concluídas e abertas
+      const metasQuery = `
+        SELECT 
+          COUNT(*) FILTER (WHERE status = 'Concluida') as metas_concluidas,
+          COUNT(*) FILTER (WHERE status != 'Concluida' OR status IS NULL) as metas_abertas
+        FROM metas_pdi
+      `;
+      const metasResult = await client.query(metasQuery);
+      const metasStats = metasResult.rows[0];
+      const metasConcluidas = parseInt(metasStats.metas_concluidas) || 0;
+      const metasAbertas = parseInt(metasStats.metas_abertas) || 0;
+
+      // 4. Buscar progresso das metas por departamento
+      const metasDepartamentoQuery = `
+        SELECT 
+          d.titulo_departamento as departamento,
+          COUNT(m.id) as total_metas,
+          COUNT(m.id) FILTER (WHERE m.status = 'Concluida') as metas_concluidas,
+          COUNT(m.id) FILTER (WHERE m.status != 'Concluida' OR m.status IS NULL) as metas_abertas
+        FROM departamento d
+        LEFT JOIN usuarios u ON d.id = u.id_departamento
+        LEFT JOIN metas_pdi m ON u.id = m.id_usuario
+        GROUP BY d.id, d.titulo_departamento
+        ORDER BY d.titulo_departamento
+      `;
+      const metasDepartamentoResult = await client.query(metasDepartamentoQuery);
+      
+      const metasDepartamento = metasDepartamentoResult.rows.map(row => {
+        const totalMetas = parseInt(row.total_metas) || 0;
+        const metasConcluidas = parseInt(row.metas_concluidas) || 0;
+        const progressoPercent = totalMetas > 0 ? Math.round((metasConcluidas / totalMetas) * 100) : 0;
+        
+        return {
+          departamento: row.departamento || 'Sem departamento',
+          progresso_das_metas: `${progressoPercent}% (${metasConcluidas}/${totalMetas})`
+        };
+      });
+
+      // 5. Buscar progresso das metas por gestor
+      const metasGestorQuery = `
+        SELECT 
+          g.nome as gestor,
+          COUNT(m.id) as total_metas,
+          COUNT(m.id) FILTER (WHERE m.status = 'Concluida') as metas_concluidas,
+          COUNT(m.id) FILTER (WHERE m.status != 'Concluida' OR m.status IS NULL) as metas_abertas
+        FROM usuarios g
+        INNER JOIN usuarios u ON g.id = u.id_gestor
+        LEFT JOIN metas_pdi m ON u.id = m.id_usuario
+        GROUP BY g.id, g.nome
+        ORDER BY g.nome
+      `;
+      const metasGestorResult = await client.query(metasGestorQuery);
+      
+      const metasGestor = metasGestorResult.rows.map(row => {
+        const totalMetas = parseInt(row.total_metas) || 0;
+        const metasConcluidas = parseInt(row.metas_concluidas) || 0;
+        const progressoPercent = totalMetas > 0 ? Math.round((metasConcluidas / totalMetas) * 100) : 0;
+        
+        return {
+          gestor: row.gestor,
+          progresso_das_metas: `${progressoPercent}% (${metasConcluidas}/${totalMetas})`
+        };
+      });
+
+      logger.info('Dashboard de RH buscado com sucesso', {
+        total_colaboradores: totalColaboradores,
+        gestores_ativos: gestoresAtivos,
+        metas_concluidas: metasConcluidas,
+        metas_abertas: metasAbertas,
+        departamentos: metasDepartamento.length,
+        gestores: metasGestor.length
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Dashboard de RH buscado com sucesso',
+        data: {
+          total_colaboradores: totalColaboradores,
+          gestores_ativos: gestoresAtivos,
+          metas_concluidas: metasConcluidas,
+          metas_abertas: metasAbertas,
+          metas_departamento: metasDepartamento,
+          metas_gestor: metasGestor
+        }
+      });
+
+    } catch (error) {
+      logger.error('Erro ao buscar dashboard de RH', { 
+        error: error.message, 
+        stack: error.stack
+      });
+      return res.status(500).json({
+        success: false,
+        error: 'INTERNAL_ERROR',
+        message: 'Erro interno do servidor'
+      });
+    } finally {
+      client.release();
+    }
+  }
 }
 
 module.exports = new DashboardController();

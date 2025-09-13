@@ -1152,6 +1152,232 @@ async function test20_ValidarEstruturaDadosPortifolio() {
   console.log(`   Validações de conteúdo aplicadas corretamente`);
 }
 
+// Testes da nova API - Dashboard de RH
+async function test21_BuscarDashboardRH() {
+  const response = await axios.get(`${API_ENDPOINT}/rh`);
+
+  if (response.status !== 200) {
+    throw new Error(`Status esperado: 200, recebido: ${response.status}`);
+  }
+
+  if (!response.data.success) {
+    throw new Error('Resposta deve ter success: true');
+  }
+
+  const data = response.data.data;
+  
+  // Verificar estrutura da resposta
+  const camposObrigatorios = [
+    'total_colaboradores',
+    'gestores_ativos',
+    'metas_concluidas',
+    'metas_abertas',
+    'metas_departamento',
+    'metas_gestor'
+  ];
+
+  for (const campo of camposObrigatorios) {
+    if (!(campo in data)) {
+      throw new Error(`Campo obrigatório '${campo}' não encontrado na resposta`);
+    }
+  }
+
+  // Verificar tipos de dados
+  const camposNumericos = ['total_colaboradores', 'gestores_ativos', 'metas_concluidas', 'metas_abertas'];
+  for (const campo of camposNumericos) {
+    if (typeof data[campo] !== 'number') {
+      throw new Error(`${campo} deve ser um número`);
+    }
+    if (data[campo] < 0) {
+      throw new Error(`${campo} não pode ser negativo`);
+    }
+  }
+
+  if (!Array.isArray(data.metas_departamento)) {
+    throw new Error('metas_departamento deve ser um array');
+  }
+
+  if (!Array.isArray(data.metas_gestor)) {
+    throw new Error('metas_gestor deve ser um array');
+  }
+
+  console.log(`   Dashboard de RH buscado com sucesso`);
+  console.log(`   Total de colaboradores: ${data.total_colaboradores}`);
+  console.log(`   Gestores ativos: ${data.gestores_ativos}`);
+  console.log(`   Metas concluídas: ${data.metas_concluidas}`);
+  console.log(`   Metas abertas: ${data.metas_abertas}`);
+  console.log(`   Departamentos: ${data.metas_departamento.length}`);
+  console.log(`   Gestores: ${data.metas_gestor.length}`);
+
+  // Verificar estrutura dos arrays se não estiverem vazios
+  if (data.metas_departamento.length > 0) {
+    const departamento = data.metas_departamento[0];
+    const camposDepartamento = ['departamento', 'progresso_das_metas'];
+    
+    for (const campo of camposDepartamento) {
+      if (!(campo in departamento)) {
+        throw new Error(`Campo '${campo}' não encontrado em metas_departamento`);
+      }
+    }
+
+    if (typeof departamento.departamento !== 'string') {
+      throw new Error('departamento deve ser string');
+    }
+
+    if (typeof departamento.progresso_das_metas !== 'string') {
+      throw new Error('progresso_das_metas deve ser string');
+    }
+
+    console.log(`   Primeiro departamento: ${departamento.departamento} - ${departamento.progresso_das_metas}`);
+  }
+
+  if (data.metas_gestor.length > 0) {
+    const gestor = data.metas_gestor[0];
+    const camposGestor = ['gestor', 'progresso_das_metas'];
+    
+    for (const campo of camposGestor) {
+      if (!(campo in gestor)) {
+        throw new Error(`Campo '${campo}' não encontrado em metas_gestor`);
+      }
+    }
+
+    if (typeof gestor.gestor !== 'string') {
+      throw new Error('gestor deve ser string');
+    }
+
+    if (typeof gestor.progresso_das_metas !== 'string') {
+      throw new Error('progresso_das_metas deve ser string');
+    }
+
+    console.log(`   Primeiro gestor: ${gestor.gestor} - ${gestor.progresso_das_metas}`);
+  }
+}
+
+async function test22_ValidarCalculosDashboardRH() {
+  const response = await axios.get(`${API_ENDPOINT}/rh`);
+
+  if (response.status !== 200) {
+    throw new Error(`Status esperado: 200, recebido: ${response.status}`);
+  }
+
+  const data = response.data.data;
+
+  // Validar valores não negativos
+  const camposNumericos = ['total_colaboradores', 'gestores_ativos', 'metas_concluidas', 'metas_abertas'];
+  for (const campo of camposNumericos) {
+    if (data[campo] < 0) {
+      throw new Error(`Campo '${campo}' não pode ser negativo`);
+    }
+  }
+
+  // Validar coerência dos dados
+  if (data.gestores_ativos > data.total_colaboradores) {
+    throw new Error('Gestores ativos não pode ser maior que total de colaboradores');
+  }
+
+  // Validar formato do progresso das metas
+  if (data.metas_departamento.length > 0) {
+    for (const departamento of data.metas_departamento) {
+      // Formato esperado: "XX% (Y/Z)"
+      if (!departamento.progresso_das_metas.match(/^\d+% \(\d+\/\d+\)$/)) {
+        throw new Error(`Formato de progresso inválido para departamento ${departamento.departamento}: ${departamento.progresso_das_metas}`);
+      }
+    }
+  }
+
+  if (data.metas_gestor.length > 0) {
+    for (const gestor of data.metas_gestor) {
+      // Formato esperado: "XX% (Y/Z)"
+      if (!gestor.progresso_das_metas.match(/^\d+% \(\d+\/\d+\)$/)) {
+        throw new Error(`Formato de progresso inválido para gestor ${gestor.gestor}: ${gestor.progresso_das_metas}`);
+      }
+    }
+  }
+
+  console.log(`   Cálculos do dashboard de RH validados com sucesso`);
+  console.log(`   Coerência entre dados verificada`);
+  console.log(`   Valores não negativos confirmados`);
+  console.log(`   Formato de progresso validado`);
+}
+
+async function test23_ValidarEstruturaDadosDashboardRH() {
+  const response = await axios.get(`${API_ENDPOINT}/rh`);
+
+  if (response.status !== 200) {
+    throw new Error(`Status esperado: 200, recebido: ${response.status}`);
+  }
+
+  const data = response.data.data;
+
+  // Verificar estrutura detalhada dos departamentos
+  if (data.metas_departamento.length > 0) {
+    for (const departamento of data.metas_departamento) {
+      // Verificar campos obrigatórios
+      const camposObrigatorios = ['departamento', 'progresso_das_metas'];
+      
+      for (const campo of camposObrigatorios) {
+        if (!(campo in departamento)) {
+          throw new Error(`Campo '${campo}' não encontrado no departamento`);
+        }
+      }
+
+      // Verificar tipos
+      if (typeof departamento.departamento !== 'string') {
+        throw new Error(`departamento deve ser string`);
+      }
+
+      if (typeof departamento.progresso_das_metas !== 'string') {
+        throw new Error(`progresso_das_metas deve ser string`);
+      }
+
+      // Verificar se não está vazio
+      if (departamento.departamento.trim().length === 0) {
+        throw new Error(`Nome do departamento não pode estar vazio`);
+      }
+
+      if (departamento.progresso_das_metas.trim().length === 0) {
+        throw new Error(`Progresso das metas não pode estar vazio`);
+      }
+    }
+  }
+
+  // Verificar estrutura detalhada dos gestores
+  if (data.metas_gestor.length > 0) {
+    for (const gestor of data.metas_gestor) {
+      // Verificar campos obrigatórios
+      const camposObrigatorios = ['gestor', 'progresso_das_metas'];
+      
+      for (const campo of camposObrigatorios) {
+        if (!(campo in gestor)) {
+          throw new Error(`Campo '${campo}' não encontrado no gestor`);
+        }
+      }
+
+      // Verificar tipos
+      if (typeof gestor.gestor !== 'string') {
+        throw new Error(`gestor deve ser string`);
+      }
+
+      if (typeof gestor.progresso_das_metas !== 'string') {
+        throw new Error(`progresso_das_metas deve ser string`);
+      }
+
+      // Verificar se não está vazio
+      if (gestor.gestor.trim().length === 0) {
+        throw new Error(`Nome do gestor não pode estar vazio`);
+      }
+
+      if (gestor.progresso_das_metas.trim().length === 0) {
+        throw new Error(`Progresso das metas não pode estar vazio`);
+      }
+    }
+  }
+
+  console.log(`   Estrutura detalhada do dashboard de RH validada com sucesso`);
+  console.log(`   Tipos de dados corretos confirmados`);
+  console.log(`   Validações de conteúdo aplicadas corretamente`);
+}
+
 // Função principal
 async function runAllTests() {
   console.log('🚀 Iniciando testes da API de Dashboard');
@@ -1185,6 +1411,11 @@ async function runAllTests() {
     await runTest('Teste 18: Buscar portfólio com ID inválido', test18_BuscarPortifolioComIDInvalido);
     await runTest('Teste 19: Validar cálculos do portfólio', test19_ValidarCalculosPortifolio);
     await runTest('Teste 20: Validar estrutura detalhada do portfólio', test20_ValidarEstruturaDadosPortifolio);
+    
+    // Testes da nova API - Dashboard de RH
+    await runTest('Teste 21: Buscar dashboard de RH', test21_BuscarDashboardRH);
+    await runTest('Teste 22: Validar cálculos do dashboard de RH', test22_ValidarCalculosDashboardRH);
+    await runTest('Teste 23: Validar estrutura detalhada do dashboard de RH', test23_ValidarEstruturaDadosDashboardRH);
     
     console.log('\n🎉 Todos os testes concluídos!');
     

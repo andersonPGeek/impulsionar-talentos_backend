@@ -12,6 +12,8 @@ const portifolioRoutes = require('./portifolio.routes');
 const metasRoutes = require('./metas.routes');
 const usuariosRoutes = require('./usuarios.routes');
 const dashboardRoutes = require('./dashboard.routes');
+const departamentoRoutes = require('./departamento.routes');
+const cargoRoutes = require('./cargo.routes');
 // const talentosRoutes = require('./talentos.routes');
 
 // Rota de teste da API
@@ -30,6 +32,8 @@ router.get('/test', (req, res) => {
       metas: '/api/metas',
       usuarios: '/api/usuarios',
       dashboard: '/api/dashboard',
+      departamentos: '/api/departamentos',
+      cargos: '/api/cargos',
       talentos: '/api/talentos'
     }
   });
@@ -46,6 +50,8 @@ router.use('/portifolio', portifolioRoutes);
 router.use('/metas', metasRoutes);
 router.use('/usuarios', usuariosRoutes);
 router.use('/dashboard', dashboardRoutes);
+router.use('/departamentos', departamentoRoutes);
+router.use('/cargos', cargoRoutes);
 // router.use('/talentos', talentosRoutes);
 
 module.exports = router; 

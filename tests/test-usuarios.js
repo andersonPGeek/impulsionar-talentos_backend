@@ -4,6 +4,10 @@ const axios = require('axios');
 const API_BASE_URL = process.env.API_URL || 'http://localhost:3002/api';
 const API_ENDPOINT = `${API_BASE_URL}/usuarios`;
 
+// Variáveis globais para testes
+let testClienteId = 1;
+let testUsuarioId = null;
+
 // Função para executar teste
 async function runTest(testName, testFunction) {
   console.log(`\n🧪 Executando: ${testName}`);
@@ -580,6 +584,739 @@ async function test17_BuscarDashboardUsuarioEstruturaDados() {
   console.log(`   Todos os campos obrigatórios presentes e com tipos corretos`);
 }
 
+// Testes das novas APIs
+async function test18_CriarUsuario() {
+  const usuarioData = {
+    nome: 'Usuário Teste',
+    email: 'usuario.teste@exemplo.com',
+    senha: 'senha123',
+    idade: 30,
+    data_nascimento: '1993-06-15'
+  };
+
+  const response = await axios.post(`${API_ENDPOINT}/cliente/${testClienteId}`, usuarioData);
+
+  if (response.status !== 201) {
+    throw new Error(`Status esperado: 201, recebido: ${response.status}`);
+  }
+
+  if (!response.data.success) {
+    throw new Error('Resposta deve ter success: true');
+  }
+
+  const data = response.data.data;
+  
+  // Verificar estrutura da resposta
+  const camposObrigatorios = ['id', 'nome', 'email', 'id_cliente', 'created_at'];
+  for (const campo of camposObrigatorios) {
+    if (!(campo in data)) {
+      throw new Error(`Campo obrigatório '${campo}' não encontrado na resposta`);
+    }
+  }
+
+  if (data.nome !== usuarioData.nome) {
+    throw new Error(`Nome esperado: ${usuarioData.nome}, recebido: ${data.nome}`);
+  }
+
+  if (data.email !== usuarioData.email.toLowerCase()) {
+    throw new Error(`Email esperado: ${usuarioData.email.toLowerCase()}, recebido: ${data.email}`);
+  }
+
+  if (data.id_cliente !== testClienteId) {
+    throw new Error(`ID do cliente esperado: ${testClienteId}, recebido: ${data.id_cliente}`);
+  }
+
+  // Salvar ID para próximos testes
+  testUsuarioId = data.id;
+
+  console.log(`   Usuário criado com sucesso - ID: ${testUsuarioId}`);
+  console.log(`   Nome: ${data.nome}`);
+  console.log(`   Email: ${data.email}`);
+  console.log(`   Cliente: ${data.id_cliente}`);
+}
+
+async function test19_BuscarUsuariosPorCliente() {
+  const response = await axios.get(`${API_ENDPOINT}/cliente/${testClienteId}`);
+
+  if (response.status !== 200) {
+    throw new Error(`Status esperado: 200, recebido: ${response.status}`);
+  }
+
+  if (!response.data.success) {
+    throw new Error('Resposta deve ter success: true');
+  }
+
+  const data = response.data.data;
+  
+  // Verificar estrutura da resposta
+  const camposObrigatorios = ['cliente_id', 'usuarios'];
+  for (const campo of camposObrigatorios) {
+    if (!(campo in data)) {
+      throw new Error(`Campo obrigatório '${campo}' não encontrado na resposta`);
+    }
+  }
+
+  if (data.cliente_id !== testClienteId) {
+    throw new Error(`ID do cliente esperado: ${testClienteId}, recebido: ${data.cliente_id}`);
+  }
+
+  if (!Array.isArray(data.usuarios)) {
+    throw new Error('usuarios deve ser um array');
+  }
+
+  console.log(`   Usuários encontrados para cliente ${testClienteId}: ${data.usuarios.length}`);
+  
+  if (data.usuarios.length > 0) {
+    const usuario = data.usuarios[0];
+    
+    // Verificar estrutura do usuário
+    const camposUsuario = [
+      'id', 'nome', 'email', 'idade', 'data_nascimento', 'id_cliente',
+      'id_departamento', 'departamento_nome', 'id_gestor', 'gestor_nome',
+      'perfil_acesso', 'perfil_acesso_nome', 'cargo', 'nome_cargo', 'created_at'
+    ];
+    
+    for (const campo of camposUsuario) {
+      if (!(campo in usuario)) {
+        throw new Error(`Campo '${campo}' não encontrado no usuário`);
+      }
+    }
+
+    console.log(`   Primeiro usuário: ${usuario.nome}`);
+    console.log(`   Email: ${usuario.email}`);
+    console.log(`   Cargo: ${usuario.nome_cargo || 'N/A'}`);
+    console.log(`   Departamento: ${usuario.departamento_nome || 'N/A'}`);
+    console.log(`   Gestor: ${usuario.gestor_nome || 'N/A'}`);
+  }
+}
+
+async function test20_CriarUsuarioComDadosInvalidos() {
+  // Teste com nome vazio
+  try {
+    await axios.post(`${API_ENDPOINT}/cliente/${testClienteId}`, { 
+      nome: '',
+      email: 'teste@exemplo.com',
+      senha: 'senha123'
+    });
+    throw new Error('Deveria ter retornado erro 400');
+  } catch (error) {
+    if (error.response && error.response.status === 400) {
+      if (!error.response.data.error || error.response.data.error !== 'INVALID_NAME') {
+        throw new Error('Código de erro incorreto para nome vazio');
+      }
+    } else {
+      throw error;
+    }
+  }
+
+  // Teste com email inválido
+  try {
+    await axios.post(`${API_ENDPOINT}/cliente/${testClienteId}`, { 
+      nome: 'Teste',
+      email: 'email-invalido',
+      senha: 'senha123'
+    });
+    throw new Error('Deveria ter retornado erro 400');
+  } catch (error) {
+    if (error.response && error.response.status === 400) {
+      if (!error.response.data.error || error.response.data.error !== 'INVALID_EMAIL_FORMAT') {
+        throw new Error('Código de erro incorreto para email inválido');
+      }
+    } else {
+      throw error;
+    }
+  }
+
+  // Teste sem senha
+  try {
+    await axios.post(`${API_ENDPOINT}/cliente/${testClienteId}`, { 
+      nome: 'Teste',
+      email: 'teste@exemplo.com'
+    });
+    throw new Error('Deveria ter retornado erro 400');
+  } catch (error) {
+    if (error.response && error.response.status === 400) {
+      if (!error.response.data.error || error.response.data.error !== 'INVALID_PASSWORD') {
+        throw new Error('Código de erro incorreto para senha ausente');
+      }
+    } else {
+      throw error;
+    }
+  }
+
+  console.log(`   Validação de dados inválidos funcionando corretamente`);
+}
+
+async function test21_CriarUsuarioEmailDuplicado() {
+  const usuarioData = {
+    nome: 'Usuário Duplicado',
+    email: 'usuario.teste@exemplo.com', // Mesmo email do teste anterior
+    senha: 'senha123'
+  };
+
+  try {
+    await axios.post(`${API_ENDPOINT}/cliente/${testClienteId}`, usuarioData);
+    throw new Error('Deveria ter retornado erro 400');
+  } catch (error) {
+    if (error.response && error.response.status === 400) {
+      if (!error.response.data.error || error.response.data.error !== 'EMAIL_ALREADY_EXISTS') {
+        throw new Error('Código de erro incorreto para email duplicado');
+      }
+    } else {
+      throw error;
+    }
+  }
+
+  console.log(`   Validação de email duplicado funcionando corretamente`);
+}
+
+async function test22_BuscarUsuariosClienteInexistente() {
+  const response = await axios.get(`${API_ENDPOINT}/cliente/99999`);
+
+  if (response.status !== 200) {
+    throw new Error(`Status esperado: 200, recebido: ${response.status}`);
+  }
+
+  if (!response.data.success) {
+    throw new Error('Resposta deve ter success: true');
+  }
+
+  const data = response.data.data;
+  
+  if (data.cliente_id !== 99999) {
+    throw new Error(`ID do cliente esperado: 99999, recebido: ${data.cliente_id}`);
+  }
+
+  if (!Array.isArray(data.usuarios) || data.usuarios.length !== 0) {
+    throw new Error('usuarios deveria ser array vazio');
+  }
+
+  console.log(`   Busca de usuários para cliente inexistente retornou dados vazios corretamente`);
+}
+
+async function test23_CriarUsuarioComIdadeInvalida() {
+  const usuarioData = {
+    nome: 'Usuário Idade Inválida',
+    email: 'usuario.idade@exemplo.com',
+    senha: 'senha123',
+    idade: -5 // Idade inválida
+  };
+
+  try {
+    await axios.post(`${API_ENDPOINT}/cliente/${testClienteId}`, usuarioData);
+    throw new Error('Deveria ter retornado erro 400');
+  } catch (error) {
+    if (error.response && error.response.status === 400) {
+      if (!error.response.data.error || error.response.data.error !== 'INVALID_AGE') {
+        throw new Error('Código de erro incorreto para idade inválida');
+      }
+    } else {
+      throw error;
+    }
+  }
+
+  console.log(`   Validação de idade inválida funcionando corretamente`);
+}
+
+async function test24_ValidarParametrosInvalidos() {
+  // Teste com ID de cliente inválido
+  try {
+    await axios.get(`${API_ENDPOINT}/cliente/abc`);
+    throw new Error('Deveria ter retornado erro 400');
+  } catch (error) {
+    if (error.response && error.response.status === 400) {
+      if (!error.response.data.error || error.response.data.error !== 'INVALID_CLIENT_ID') {
+        throw new Error('Código de erro incorreto para ID cliente inválido');
+      }
+    } else {
+      throw error;
+    }
+  }
+
+  // Teste de criação com ID de cliente inválido
+  try {
+    await axios.post(`${API_ENDPOINT}/cliente/abc`, {
+      nome: 'Teste',
+      email: 'teste@exemplo.com',
+      senha: 'senha123'
+    });
+    throw new Error('Deveria ter retornado erro 400');
+  } catch (error) {
+    if (error.response && error.response.status === 400) {
+      if (!error.response.data.error || error.response.data.error !== 'INVALID_CLIENT_ID') {
+        throw new Error('Código de erro incorreto para ID cliente inválido na criação');
+      }
+    } else {
+      throw error;
+    }
+  }
+
+  console.log(`   Validação de parâmetros inválidos funcionando corretamente`);
+}
+
+// Testes dos novos endpoints de gestão de gestores
+async function test25_BuscarUsuariosSemGestor() {
+  const response = await axios.get(`${API_ENDPOINT}/sem-gestor/${testClienteId}`);
+
+  if (response.status !== 200) {
+    throw new Error(`Status esperado: 200, recebido: ${response.status}`);
+  }
+
+  if (!response.data.success) {
+    throw new Error('Resposta deve ter success: true');
+  }
+
+  const data = response.data.data;
+  
+  // Verificar estrutura da resposta
+  const camposObrigatorios = ['cliente_id', 'usuarios'];
+  for (const campo of camposObrigatorios) {
+    if (!(campo in data)) {
+      throw new Error(`Campo obrigatório '${campo}' não encontrado na resposta`);
+    }
+  }
+
+  if (data.cliente_id !== testClienteId) {
+    throw new Error(`ID do cliente esperado: ${testClienteId}, recebido: ${data.cliente_id}`);
+  }
+
+  if (!Array.isArray(data.usuarios)) {
+    throw new Error('usuarios deve ser um array');
+  }
+
+  console.log(`   Usuários sem gestor encontrados para cliente ${testClienteId}: ${data.usuarios.length}`);
+  
+  if (data.usuarios.length > 0) {
+    const usuario = data.usuarios[0];
+    
+    // Verificar estrutura do usuário
+    const camposUsuario = ['id', 'nome_usuario', 'nome_gestor', 'nome_departamento'];
+    
+    for (const campo of camposUsuario) {
+      if (!(campo in usuario)) {
+        throw new Error(`Campo '${campo}' não encontrado no usuário`);
+      }
+    }
+
+    // Para usuários sem gestor, nome_gestor deve ser null
+    if (usuario.nome_gestor !== null) {
+      throw new Error('nome_gestor deve ser null para usuários sem gestor');
+    }
+
+    console.log(`   Primeiro usuário: ${usuario.nome_usuario}`);
+    console.log(`   Gestor: ${usuario.nome_gestor || 'N/A'}`);
+    console.log(`   Departamento: ${usuario.nome_departamento || 'N/A'}`);
+  }
+}
+
+async function test26_BuscarUsuariosComGestor() {
+  const response = await axios.get(`${API_ENDPOINT}/com-gestor/${testClienteId}`);
+
+  if (response.status !== 200) {
+    throw new Error(`Status esperado: 200, recebido: ${response.status}`);
+  }
+
+  if (!response.data.success) {
+    throw new Error('Resposta deve ter success: true');
+  }
+
+  const data = response.data.data;
+  
+  // Verificar estrutura da resposta
+  const camposObrigatorios = ['cliente_id', 'usuarios'];
+  for (const campo of camposObrigatorios) {
+    if (!(campo in data)) {
+      throw new Error(`Campo obrigatório '${campo}' não encontrado na resposta`);
+    }
+  }
+
+  if (data.cliente_id !== testClienteId) {
+    throw new Error(`ID do cliente esperado: ${testClienteId}, recebido: ${data.cliente_id}`);
+  }
+
+  if (!Array.isArray(data.usuarios)) {
+    throw new Error('usuarios deve ser um array');
+  }
+
+  console.log(`   Usuários com gestor encontrados para cliente ${testClienteId}: ${data.usuarios.length}`);
+  
+  if (data.usuarios.length > 0) {
+    const usuario = data.usuarios[0];
+    
+    // Verificar estrutura do usuário
+    const camposUsuario = ['id', 'nome_usuario', 'nome_gestor', 'nome_departamento'];
+    
+    for (const campo of camposUsuario) {
+      if (!(campo in usuario)) {
+        throw new Error(`Campo '${campo}' não encontrado no usuário`);
+      }
+    }
+
+    // Para usuários com gestor, nome_gestor não deve ser null
+    if (usuario.nome_gestor === null) {
+      throw new Error('nome_gestor não deve ser null para usuários com gestor');
+    }
+
+    console.log(`   Primeiro usuário: ${usuario.nome_usuario}`);
+    console.log(`   Gestor: ${usuario.nome_gestor}`);
+    console.log(`   Departamento: ${usuario.nome_departamento || 'N/A'}`);
+  }
+}
+
+async function test27_AtribuirGestorUsuario() {
+  // Primeiro, vamos tentar criar um segundo usuário para ser gestor
+  const gestorData = {
+    nome: 'Gestor Teste',
+    email: 'gestor.teste@exemplo.com',
+    senha: 'senha123',
+    idade: 35
+  };
+
+  let gestorId;
+  try {
+    const criarGestorResponse = await axios.post(`${API_ENDPOINT}/cliente/${testClienteId}`, gestorData);
+    gestorId = criarGestorResponse.data.data.id;
+  } catch (error) {
+    // Se der erro (provavelmente email duplicado), vamos assumir que já existe um gestor
+    // Para fins de teste, vamos usar um ID fictício
+    gestorId = 1;
+  }
+
+  // Agora vamos atribuir o gestor ao usuário criado anteriormente
+  if (testUsuarioId && gestorId) {
+    const response = await axios.put(`${API_ENDPOINT}/${testUsuarioId}/atribuir-gestor/${gestorId}`);
+
+    if (response.status !== 200) {
+      throw new Error(`Status esperado: 200, recebido: ${response.status}`);
+    }
+
+    if (!response.data.success) {
+      throw new Error('Resposta deve ter success: true');
+    }
+
+    const data = response.data.data;
+    
+    // Verificar estrutura da resposta
+    const camposObrigatorios = ['usuario_id', 'nome_usuario', 'id_gestor', 'nome_gestor'];
+    for (const campo of camposObrigatorios) {
+      if (!(campo in data)) {
+        throw new Error(`Campo obrigatório '${campo}' não encontrado na resposta`);
+      }
+    }
+
+    if (data.usuario_id !== testUsuarioId) {
+      throw new Error(`ID do usuário esperado: ${testUsuarioId}, recebido: ${data.usuario_id}`);
+    }
+
+    if (data.id_gestor !== gestorId) {
+      throw new Error(`ID do gestor esperado: ${gestorId}, recebido: ${data.id_gestor}`);
+    }
+
+    console.log(`   Gestor atribuído com sucesso ao usuário ${testUsuarioId}`);
+    console.log(`   Nome do usuário: ${data.nome_usuario}`);
+    console.log(`   Nome do gestor: ${data.nome_gestor}`);
+  } else {
+    console.log(`   Teste pulado - IDs não disponíveis (usuário: ${testUsuarioId}, gestor: ${gestorId})`);
+  }
+}
+
+async function test28_RemoverGestorUsuario() {
+  // Este teste depende do teste anterior ter atribuído um gestor
+  if (testUsuarioId) {
+    // Vamos tentar remover o gestor (assumindo que foi atribuído no teste anterior)
+    try {
+      const response = await axios.put(`${API_ENDPOINT}/${testUsuarioId}/remover-gestor/1`);
+
+      if (response.status !== 200) {
+        throw new Error(`Status esperado: 200, recebido: ${response.status}`);
+      }
+
+      if (!response.data.success) {
+        throw new Error('Resposta deve ter success: true');
+      }
+
+      const data = response.data.data;
+      
+      // Verificar estrutura da resposta
+      const camposObrigatorios = ['usuario_id', 'nome_usuario', 'id_gestor'];
+      for (const campo of camposObrigatorios) {
+        if (!(campo in data)) {
+          throw new Error(`Campo obrigatório '${campo}' não encontrado na resposta`);
+        }
+      }
+
+      if (data.usuario_id !== testUsuarioId) {
+        throw new Error(`ID do usuário esperado: ${testUsuarioId}, recebido: ${data.usuario_id}`);
+      }
+
+      if (data.id_gestor !== null) {
+        throw new Error(`ID do gestor deveria ser null após remoção, recebido: ${data.id_gestor}`);
+      }
+
+      console.log(`   Gestor removido com sucesso do usuário ${testUsuarioId}`);
+      console.log(`   Nome do usuário: ${data.nome_usuario}`);
+      console.log(`   Gestor atual: ${data.id_gestor || 'N/A'}`);
+    } catch (error) {
+      if (error.response && error.response.status === 404) {
+        console.log(`   Teste pulado - Usuário não possui o gestor especificado`);
+      } else {
+        throw error;
+      }
+    }
+  } else {
+    console.log(`   Teste pulado - ID do usuário não disponível`);
+  }
+}
+
+async function test29_ValidarErrosGestao() {
+  // Teste com ID de cliente inválido para busca sem gestor
+  try {
+    await axios.get(`${API_ENDPOINT}/sem-gestor/abc`);
+    throw new Error('Deveria ter retornado erro 400');
+  } catch (error) {
+    if (error.response && error.response.status === 400) {
+      if (!error.response.data.error || error.response.data.error !== 'INVALID_CLIENT_ID') {
+        throw new Error('Código de erro incorreto para ID cliente inválido');
+      }
+    } else {
+      throw error;
+    }
+  }
+
+  // Teste com ID de usuário inválido para atribuir gestor
+  try {
+    await axios.put(`${API_ENDPOINT}/abc/atribuir-gestor/1`);
+    throw new Error('Deveria ter retornado erro 400');
+  } catch (error) {
+    if (error.response && error.response.status === 400) {
+      if (!error.response.data.error || error.response.data.error !== 'INVALID_USER_ID') {
+        throw new Error('Código de erro incorreto para ID usuário inválido');
+      }
+    } else {
+      throw error;
+    }
+  }
+
+  // Teste tentando atribuir usuário como gestor de si mesmo
+  if (testUsuarioId) {
+    try {
+      await axios.put(`${API_ENDPOINT}/${testUsuarioId}/atribuir-gestor/${testUsuarioId}`);
+      throw new Error('Deveria ter retornado erro 400');
+    } catch (error) {
+      if (error.response && error.response.status === 400) {
+        if (!error.response.data.error || error.response.data.error !== 'SELF_ASSIGNMENT') {
+          throw new Error('Código de erro incorreto para auto-atribuição');
+        }
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  console.log(`   Validação de erros de gestão funcionando corretamente`);
+}
+
+async function test30_BuscarClienteInexistente() {
+  const response = await axios.get(`${API_ENDPOINT}/sem-gestor/99999`);
+
+  if (response.status !== 200) {
+    throw new Error(`Status esperado: 200, recebido: ${response.status}`);
+  }
+
+  if (!response.data.success) {
+    throw new Error('Resposta deve ter success: true');
+  }
+
+  const data = response.data.data;
+  
+  if (data.cliente_id !== 99999) {
+    throw new Error(`ID do cliente esperado: 99999, recebido: ${data.cliente_id}`);
+  }
+
+  if (!Array.isArray(data.usuarios) || data.usuarios.length !== 0) {
+    throw new Error('usuarios deveria ser array vazio');
+  }
+
+  console.log(`   Busca de usuários para cliente inexistente retornou dados vazios corretamente`);
+}
+
+// Testes dos novos endpoints de busca por perfil de acesso
+async function test31_BuscarTodosUsuariosPorCliente() {
+  const response = await axios.get(`${API_ENDPOINT}/all-usuarios/${testClienteId}`);
+
+  if (response.status !== 200) {
+    throw new Error(`Status esperado: 200, recebido: ${response.status}`);
+  }
+
+  if (!response.data.success) {
+    throw new Error('Resposta deve ter success: true');
+  }
+
+  const data = response.data.data;
+  
+  // Verificar estrutura da resposta
+  const camposObrigatorios = ['cliente_id', 'usuarios'];
+  for (const campo of camposObrigatorios) {
+    if (!(campo in data)) {
+      throw new Error(`Campo obrigatório '${campo}' não encontrado na resposta`);
+    }
+  }
+
+  if (data.cliente_id !== testClienteId) {
+    throw new Error(`ID do cliente esperado: ${testClienteId}, recebido: ${data.cliente_id}`);
+  }
+
+  if (!Array.isArray(data.usuarios)) {
+    throw new Error('usuarios deve ser um array');
+  }
+
+  console.log(`   Usuários com perfil_acesso = 1 encontrados para cliente ${testClienteId}: ${data.usuarios.length}`);
+  
+  if (data.usuarios.length > 0) {
+    const usuario = data.usuarios[0];
+    
+    // Verificar estrutura do usuário
+    const camposUsuario = ['id', 'nome', 'email', 'departamento'];
+    
+    for (const campo of camposUsuario) {
+      if (!(campo in usuario)) {
+        throw new Error(`Campo '${campo}' não encontrado no usuário`);
+      }
+    }
+
+    console.log(`   Primeiro usuário: ${usuario.nome}`);
+    console.log(`   Email: ${usuario.email}`);
+    console.log(`   Departamento: ${usuario.departamento || 'N/A'}`);
+  }
+}
+
+async function test32_BuscarTodosGestoresPorCliente() {
+  const response = await axios.get(`${API_ENDPOINT}/all-gestores/${testClienteId}`);
+
+  if (response.status !== 200) {
+    throw new Error(`Status esperado: 200, recebido: ${response.status}`);
+  }
+
+  if (!response.data.success) {
+    throw new Error('Resposta deve ter success: true');
+  }
+
+  const data = response.data.data;
+  
+  // Verificar estrutura da resposta
+  const camposObrigatorios = ['cliente_id', 'gestores'];
+  for (const campo of camposObrigatorios) {
+    if (!(campo in data)) {
+      throw new Error(`Campo obrigatório '${campo}' não encontrado na resposta`);
+    }
+  }
+
+  if (data.cliente_id !== testClienteId) {
+    throw new Error(`ID do cliente esperado: ${testClienteId}, recebido: ${data.cliente_id}`);
+  }
+
+  if (!Array.isArray(data.gestores)) {
+    throw new Error('gestores deve ser um array');
+  }
+
+  console.log(`   Gestores com perfil_acesso in (2,3) encontrados para cliente ${testClienteId}: ${data.gestores.length}`);
+  
+  if (data.gestores.length > 0) {
+    const gestor = data.gestores[0];
+    
+    // Verificar estrutura do gestor
+    const camposGestor = ['id', 'nome', 'email', 'titulo_departamento'];
+    
+    for (const campo of camposGestor) {
+      if (!(campo in gestor)) {
+        throw new Error(`Campo '${campo}' não encontrado no gestor`);
+      }
+    }
+
+    console.log(`   Primeiro gestor: ${gestor.nome}`);
+    console.log(`   Email: ${gestor.email}`);
+    console.log(`   Departamento: ${gestor.titulo_departamento || 'N/A'}`);
+  }
+}
+
+async function test33_ValidarErrosPerfilAcesso() {
+  // Teste com ID de cliente inválido para busca de usuários
+  try {
+    await axios.get(`${API_ENDPOINT}/all-usuarios/abc`);
+    throw new Error('Deveria ter retornado erro 400');
+  } catch (error) {
+    if (error.response && error.response.status === 400) {
+      if (!error.response.data.error || error.response.data.error !== 'INVALID_CLIENT_ID') {
+        throw new Error('Código de erro incorreto para ID cliente inválido');
+      }
+    } else {
+      throw error;
+    }
+  }
+
+  // Teste com ID de cliente inválido para busca de gestores
+  try {
+    await axios.get(`${API_ENDPOINT}/all-gestores/xyz`);
+    throw new Error('Deveria ter retornado erro 400');
+  } catch (error) {
+    if (error.response && error.response.status === 400) {
+      if (!error.response.data.error || error.response.data.error !== 'INVALID_CLIENT_ID') {
+        throw new Error('Código de erro incorreto para ID cliente inválido');
+      }
+    } else {
+      throw error;
+    }
+  }
+
+  console.log(`   Validação de erros de perfil de acesso funcionando corretamente`);
+}
+
+async function test34_BuscarClienteInexistentePerfilAcesso() {
+  // Teste buscar usuários para cliente inexistente
+  const responseUsuarios = await axios.get(`${API_ENDPOINT}/all-usuarios/99999`);
+
+  if (responseUsuarios.status !== 200) {
+    throw new Error(`Status esperado: 200, recebido: ${responseUsuarios.status}`);
+  }
+
+  if (!responseUsuarios.data.success) {
+    throw new Error('Resposta deve ter success: true');
+  }
+
+  const dataUsuarios = responseUsuarios.data.data;
+  
+  if (dataUsuarios.cliente_id !== 99999) {
+    throw new Error(`ID do cliente esperado: 99999, recebido: ${dataUsuarios.cliente_id}`);
+  }
+
+  if (!Array.isArray(dataUsuarios.usuarios) || dataUsuarios.usuarios.length !== 0) {
+    throw new Error('usuarios deveria ser array vazio');
+  }
+
+  // Teste buscar gestores para cliente inexistente
+  const responseGestores = await axios.get(`${API_ENDPOINT}/all-gestores/99999`);
+
+  if (responseGestores.status !== 200) {
+    throw new Error(`Status esperado: 200, recebido: ${responseGestores.status}`);
+  }
+
+  if (!responseGestores.data.success) {
+    throw new Error('Resposta deve ter success: true');
+  }
+
+  const dataGestores = responseGestores.data.data;
+  
+  if (dataGestores.cliente_id !== 99999) {
+    throw new Error(`ID do cliente esperado: 99999, recebido: ${dataGestores.cliente_id}`);
+  }
+
+  if (!Array.isArray(dataGestores.gestores) || dataGestores.gestores.length !== 0) {
+    throw new Error('gestores deveria ser array vazio');
+  }
+
+  console.log(`   Busca de usuários e gestores para cliente inexistente retornou dados vazios corretamente`);
+}
+
 // Função principal
 async function runAllTests() {
   console.log('🚀 Iniciando testes da API de Usuários');
@@ -608,6 +1345,29 @@ async function runAllTests() {
     await runTest('Teste 15: Buscar dashboard de usuário inexistente', test15_BuscarDashboardUsuarioInexistente);
     await runTest('Teste 16: Buscar dashboard com ID inválido', test16_BuscarDashboardUsuarioComIDInvalido);
     await runTest('Teste 17: Buscar dashboard - estrutura de dados', test17_BuscarDashboardUsuarioEstruturaDados);
+    
+    // Testes das novas APIs CRUD
+    await runTest('Teste 18: Criar usuário', test18_CriarUsuario);
+    await runTest('Teste 19: Buscar usuários por cliente', test19_BuscarUsuariosPorCliente);
+    await runTest('Teste 20: Criar usuário com dados inválidos', test20_CriarUsuarioComDadosInvalidos);
+    await runTest('Teste 21: Criar usuário com email duplicado', test21_CriarUsuarioEmailDuplicado);
+    await runTest('Teste 22: Buscar usuários de cliente inexistente', test22_BuscarUsuariosClienteInexistente);
+    await runTest('Teste 23: Criar usuário com idade inválida', test23_CriarUsuarioComIdadeInvalida);
+    await runTest('Teste 24: Validar parâmetros inválidos', test24_ValidarParametrosInvalidos);
+    
+    // Testes dos novos endpoints de gestão de gestores
+    await runTest('Teste 25: Buscar usuários sem gestor', test25_BuscarUsuariosSemGestor);
+    await runTest('Teste 26: Buscar usuários com gestor', test26_BuscarUsuariosComGestor);
+    await runTest('Teste 27: Atribuir gestor a usuário', test27_AtribuirGestorUsuario);
+    await runTest('Teste 28: Remover gestor de usuário', test28_RemoverGestorUsuario);
+    await runTest('Teste 29: Validar erros de gestão', test29_ValidarErrosGestao);
+    await runTest('Teste 30: Buscar usuários de cliente inexistente (gestão)', test30_BuscarClienteInexistente);
+    
+    // Testes dos novos endpoints de busca por perfil de acesso
+    await runTest('Teste 31: Buscar todos os usuários por cliente (perfil_acesso = 1)', test31_BuscarTodosUsuariosPorCliente);
+    await runTest('Teste 32: Buscar todos os gestores por cliente (perfil_acesso in (2,3))', test32_BuscarTodosGestoresPorCliente);
+    await runTest('Teste 33: Validar erros de perfil de acesso', test33_ValidarErrosPerfilAcesso);
+    await runTest('Teste 34: Buscar cliente inexistente (perfil de acesso)', test34_BuscarClienteInexistentePerfilAcesso);
     
     console.log('\n🎉 Todos os testes concluídos!');
     

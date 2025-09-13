@@ -153,7 +153,8 @@ class SabotadoresController extends BaseController {
         SELECT
           s.sabotador,
           rs.nivel,
-          ds.descricao
+          ds.descricao,
+          rs.pontuacao
         FROM resultado_sabotadores rs
         JOIN sabotadores s ON s.id = rs.id_sabotador
         JOIN descricoes_sabotadores ds ON ds.id = rs.id_descricao_sabotadores

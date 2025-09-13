@@ -31,5 +31,12 @@ router.get('/analise-swot/:id_gestor', dashboardController.buscarAnaliseSwotPorG
  */
 router.get('/portifolio/:id_gestor', dashboardController.buscarPortifolioPorGestor);
 
+/**
+ * @route GET /api/dashboard/rh
+ * @desc Buscar dashboard de gestão de RH
+ * @access Private
+ */
+router.get('/rh', dashboardController.buscarDashboardRH);
+
 module.exports = router;
 

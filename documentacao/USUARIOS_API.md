@@ -317,13 +317,537 @@ Authorization: Bearer <token>
 
 ---
 
+### 4. Criar Usuário
+
+Cria um novo usuário para um cliente específico.
+
+**Endpoint:** `POST /api/usuarios/cliente/:id_cliente`
+
+**Headers:**
+```
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+**Parâmetros da URL:**
+- `id_cliente` (integer): ID do cliente
+
+**Corpo da Requisição:**
+```json
+{
+  "nome": "João Silva",
+  "email": "joao.silva@empresa.com",
+  "senha": "minhasenha123",
+  "cargo": 5,
+  "perfil_acesso": 2,
+  "idade": 28,
+  "data_nascimento": "1995-05-15T00:00:00.000Z",
+  "id_gestor": 1,
+  "id_departamento": 3
+}
+```
+
+**Resposta de Sucesso (201):**
+```json
+{
+  "success": true,
+  "message": "Usuário criado com sucesso",
+  "data": {
+    "id": 15,
+    "nome": "João Silva",
+    "email": "joao.silva@empresa.com",
+    "id_cliente": 1,
+    "created_at": "2024-01-15T10:30:00.000Z"
+  }
+}
+```
+
+**Resposta de Erro (400) - Email Duplicado:**
+```json
+{
+  "success": false,
+  "error": "EMAIL_ALREADY_EXISTS",
+  "message": "Já existe um usuário com este email"
+}
+```
+
+**Resposta de Erro (400) - Dados Inválidos:**
+```json
+{
+  "success": false,
+  "error": "INVALID_NAME",
+  "message": "Nome é obrigatório"
+}
+```
+
+**Códigos de Erro:**
+
+| Código | Descrição |
+|--------|-----------|
+| `INVALID_CLIENT_ID` | ID do cliente inválido ou não fornecido |
+| `INVALID_NAME` | Nome não fornecido ou vazio |
+| `INVALID_EMAIL` | Email não fornecido ou vazio |
+| `INVALID_EMAIL_FORMAT` | Formato de email inválido |
+| `INVALID_PASSWORD` | Senha não fornecida ou vazia |
+| `INVALID_CARGO_ID` | ID do cargo inválido |
+| `INVALID_PERFIL_ACESSO_ID` | ID do perfil de acesso inválido |
+| `INVALID_GESTOR_ID` | ID do gestor inválido |
+| `INVALID_DEPARTAMENTO_ID` | ID do departamento inválido |
+| `INVALID_AGE` | Idade inválida (deve estar entre 0 e 120) |
+| `EMAIL_ALREADY_EXISTS` | Email já cadastrado |
+| `CLIENT_NOT_FOUND` | Cliente não encontrado |
+| `CARGO_NOT_FOUND` | Cargo não encontrado para este cliente |
+| `DEPARTAMENTO_NOT_FOUND` | Departamento não encontrado para este cliente |
+| `PERFIL_NOT_FOUND` | Perfil de acesso não encontrado |
+| `GESTOR_NOT_FOUND` | Gestor não encontrado para este cliente |
+| `INTERNAL_ERROR` | Erro interno do servidor |
+
+---
+
+### 5. Buscar Usuários por Cliente
+
+Busca todos os usuários de um cliente específico com informações detalhadas.
+
+**Endpoint:** `GET /api/usuarios/cliente/:id_cliente`
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**Parâmetros da URL:**
+- `id_cliente` (integer): ID do cliente
+
+**Resposta de Sucesso (200):**
+```json
+{
+  "success": true,
+  "message": "Usuários buscados com sucesso",
+  "data": {
+    "cliente_id": 1,
+    "usuarios": [
+      {
+        "id": 2,
+        "nome": "João Silva",
+        "email": "joao.silva@empresa.com",
+        "idade": 28,
+        "data_nascimento": "1995-05-15T00:00:00.000Z",
+        "id_cliente": 1,
+        "id_departamento": 3,
+        "departamento_nome": "Tecnologia",
+        "id_gestor": 1,
+        "gestor_nome": "Maria Santos",
+        "perfil_acesso": 2,
+        "perfil_acesso_nome": "Colaborador",
+        "cargo": 5,
+        "nome_cargo": "Desenvolvedor Sênior",
+        "created_at": "2024-01-15T10:30:00.000Z"
+      },
+      {
+        "id": 3,
+        "nome": "Pedro Costa",
+        "email": "pedro.costa@empresa.com",
+        "idade": 32,
+        "data_nascimento": "1991-08-22T00:00:00.000Z",
+        "id_cliente": 1,
+        "id_departamento": 2,
+        "departamento_nome": "Marketing",
+        "id_gestor": 1,
+        "gestor_nome": "Maria Santos",
+        "perfil_acesso": 2,
+        "perfil_acesso_nome": "Colaborador",
+        "cargo": 8,
+        "nome_cargo": "Analista de Marketing",
+        "created_at": "2024-01-10T14:20:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+**Resposta quando não há usuários (200):**
+```json
+{
+  "success": true,
+  "message": "Nenhum usuário encontrado para este cliente",
+  "data": {
+    "cliente_id": 1,
+    "usuarios": []
+  }
+}
+```
+
+**Resposta de Erro (400):**
+```json
+{
+  "success": false,
+  "error": "INVALID_CLIENT_ID",
+  "message": "ID do cliente é obrigatório e deve ser um número válido"
+}
+```
+
+**Campos de Resposta do Usuário:**
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| `id` | integer | ID único do usuário |
+| `nome` | string | Nome completo do usuário |
+| `email` | string | Email do usuário |
+| `idade` | integer/null | Idade do usuário |
+| `data_nascimento` | string/null | Data de nascimento no formato ISO 8601 |
+| `id_cliente` | integer | ID do cliente proprietário |
+| `id_departamento` | integer/null | ID do departamento |
+| `departamento_nome` | string/null | Nome do departamento |
+| `id_gestor` | integer/null | ID do gestor |
+| `gestor_nome` | string/null | Nome do gestor |
+| `perfil_acesso` | integer/null | ID do perfil de acesso |
+| `perfil_acesso_nome` | string/null | Nome do perfil de acesso |
+| `cargo` | integer/null | ID do cargo |
+| `nome_cargo` | string/null | Nome do cargo |
+| `created_at` | string | Data de criação no formato ISO 8601 |
+
+---
+
+### 6. Buscar Usuários sem Gestor
+
+Busca todos os usuários de um cliente que não possuem gestor atribuído (id_gestor is null).
+
+**Endpoint:** `GET /api/usuarios/sem-gestor/:id_cliente`
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**Parâmetros da URL:**
+- `id_cliente` (integer): ID do cliente
+
+**Resposta de Sucesso (200):**
+```json
+{
+  "success": true,
+  "message": "Usuários sem gestor buscados com sucesso",
+  "data": {
+    "cliente_id": 1,
+    "usuarios": [
+      {
+        "id": 2,
+        "nome_usuario": "João Silva",
+        "nome_gestor": null,
+        "nome_departamento": "Tecnologia"
+      },
+      {
+        "id": 5,
+        "nome_usuario": "Ana Costa",
+        "nome_gestor": null,
+        "nome_departamento": "Recursos Humanos"
+      }
+    ]
+  }
+}
+```
+
+**Códigos de Erro:**
+
+| Código | Descrição |
+|--------|-----------|
+| `INVALID_CLIENT_ID` | ID do cliente inválido ou não fornecido |
+| `INTERNAL_ERROR` | Erro interno do servidor |
+
+---
+
+### 7. Buscar Usuários com Gestor
+
+Busca todos os usuários de um cliente que possuem gestor atribuído (id_gestor is not null).
+
+**Endpoint:** `GET /api/usuarios/com-gestor/:id_cliente`
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**Parâmetros da URL:**
+- `id_cliente` (integer): ID do cliente
+
+**Resposta de Sucesso (200):**
+```json
+{
+  "success": true,
+  "message": "Usuários com gestor buscados com sucesso",
+  "data": {
+    "cliente_id": 1,
+    "usuarios": [
+      {
+        "id": 3,
+        "nome_usuario": "Pedro Santos",
+        "nome_gestor": "Maria Oliveira",
+        "nome_departamento": "Vendas"
+      },
+      {
+        "id": 4,
+        "nome_usuario": "Carlos Lima",
+        "nome_gestor": "João Silva",
+        "nome_departamento": "Marketing"
+      }
+    ]
+  }
+}
+```
+
+**Códigos de Erro:**
+
+| Código | Descrição |
+|--------|-----------|
+| `INVALID_CLIENT_ID` | ID do cliente inválido ou não fornecido |
+| `INTERNAL_ERROR` | Erro interno do servidor |
+
+---
+
+### 8. Remover Gestor de Usuário
+
+Remove o gestor de um usuário específico, definindo id_gestor como NULL.
+
+**Endpoint:** `PUT /api/usuarios/:id_usuario/remover-gestor/:id_usuario_gestor`
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**Parâmetros da URL:**
+- `id_usuario` (integer): ID do usuário
+- `id_usuario_gestor` (integer): ID do gestor atual (para validação)
+
+**Resposta de Sucesso (200):**
+```json
+{
+  "success": true,
+  "message": "Gestor removido do usuário com sucesso",
+  "data": {
+    "usuario_id": 3,
+    "nome_usuario": "Pedro Santos",
+    "id_gestor": null
+  }
+}
+```
+
+**Resposta de Erro (404):**
+```json
+{
+  "success": false,
+  "error": "USER_GESTOR_NOT_FOUND",
+  "message": "Usuário não encontrado ou não possui o gestor especificado"
+}
+```
+
+**Códigos de Erro:**
+
+| Código | Descrição |
+|--------|-----------|
+| `INVALID_USER_ID` | ID do usuário inválido ou não fornecido |
+| `INVALID_GESTOR_ID` | ID do gestor inválido ou não fornecido |
+| `USER_GESTOR_NOT_FOUND` | Usuário não encontrado ou não possui o gestor especificado |
+| `INTERNAL_ERROR` | Erro interno do servidor |
+
+---
+
+### 9. Atribuir Gestor a Usuário
+
+Atribui um gestor a um usuário específico, atualizando o campo id_gestor.
+
+**Endpoint:** `PUT /api/usuarios/:id_usuario/atribuir-gestor/:id_usuario_gestor`
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**Parâmetros da URL:**
+- `id_usuario` (integer): ID do usuário
+- `id_usuario_gestor` (integer): ID do usuário que será o gestor
+
+**Resposta de Sucesso (200):**
+```json
+{
+  "success": true,
+  "message": "Gestor atribuído ao usuário com sucesso",
+  "data": {
+    "usuario_id": 3,
+    "nome_usuario": "Pedro Santos",
+    "id_gestor": 1,
+    "nome_gestor": "Maria Oliveira"
+  }
+}
+```
+
+**Resposta de Erro (400) - Auto-atribuição:**
+```json
+{
+  "success": false,
+  "error": "SELF_ASSIGNMENT",
+  "message": "Um usuário não pode ser gestor de si mesmo"
+}
+```
+
+**Resposta de Erro (400) - Clientes diferentes:**
+```json
+{
+  "success": false,
+  "error": "DIFFERENT_CLIENTS",
+  "message": "Usuário e gestor devem pertencer ao mesmo cliente"
+}
+```
+
+**Códigos de Erro:**
+
+| Código | Descrição |
+|--------|-----------|
+| `INVALID_USER_ID` | ID do usuário inválido ou não fornecido |
+| `INVALID_GESTOR_ID` | ID do gestor inválido ou não fornecido |
+| `USER_NOT_FOUND` | Usuário não encontrado |
+| `GESTOR_NOT_FOUND` | Gestor não encontrado |
+| `DIFFERENT_CLIENTS` | Usuário e gestor pertencem a clientes diferentes |
+| `SELF_ASSIGNMENT` | Tentativa de auto-atribuição como gestor |
+| `INTERNAL_ERROR` | Erro interno do servidor |
+
+---
+
+### 10. Buscar Todos os Usuários por Cliente
+
+Busca todos os usuários de um cliente que possuem perfil de acesso = 1.
+
+**Endpoint:** `GET /api/usuarios/all-usuarios/:id_cliente`
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**Parâmetros da URL:**
+- `id_cliente` (integer): ID do cliente
+
+**Resposta de Sucesso (200):**
+```json
+{
+  "success": true,
+  "message": "Usuários buscados com sucesso",
+  "data": {
+    "cliente_id": 1,
+    "usuarios": [
+      {
+        "id": 2,
+        "nome": "João Silva",
+        "email": "joao.silva@empresa.com",
+        "departamento": "Tecnologia"
+      },
+      {
+        "id": 5,
+        "nome": "Ana Costa",
+        "email": "ana.costa@empresa.com",
+        "departamento": "Recursos Humanos"
+      }
+    ]
+  }
+}
+```
+
+**Códigos de Erro:**
+
+| Código | Descrição |
+|--------|-----------|
+| `INVALID_CLIENT_ID` | ID do cliente inválido ou não fornecido |
+| `INTERNAL_ERROR` | Erro interno do servidor |
+
+---
+
+### 11. Buscar Todos os Gestores por Cliente
+
+Busca todos os gestores de um cliente que possuem perfil de acesso 2 ou 3.
+
+**Endpoint:** `GET /api/usuarios/all-gestores/:id_cliente`
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**Parâmetros da URL:**
+- `id_cliente` (integer): ID do cliente
+
+**Resposta de Sucesso (200):**
+```json
+{
+  "success": true,
+  "message": "Gestores buscados com sucesso",
+  "data": {
+    "cliente_id": 1,
+    "gestores": [
+      {
+        "id": 1,
+        "nome": "Maria Oliveira",
+        "email": "maria.oliveira@empresa.com",
+        "titulo_departamento": "Gerência Geral"
+      },
+      {
+        "id": 3,
+        "nome": "Pedro Santos",
+        "email": "pedro.santos@empresa.com",
+        "titulo_departamento": "Vendas"
+      }
+    ]
+  }
+}
+```
+
+**Códigos de Erro:**
+
+| Código | Descrição |
+|--------|-----------|
+| `INVALID_CLIENT_ID` | ID do cliente inválido ou não fornecido |
+| `INTERNAL_ERROR` | Erro interno do servidor |
+
+---
+
 ## Validações
 
 ### Validações de Entrada
 
-1. **ID do Gestor:**
+1. **ID do Cliente:**
    - Deve ser um número inteiro positivo
    - Campo obrigatório
+
+2. **Nome:**
+   - Deve ser uma string não vazia
+   - Espaços em branco no início e fim são removidos automaticamente
+   - Campo obrigatório
+
+3. **Email:**
+   - Deve ser uma string não vazia
+   - Deve seguir formato de email válido (user@domain.com)
+   - Deve ser único no sistema (case-insensitive)
+   - Convertido automaticamente para minúsculas
+   - Campo obrigatório
+
+4. **Senha:**
+   - Deve ser uma string não vazia
+   - Campo obrigatório
+   - **Nota:** Em produção, deve ser hash da senha
+
+5. **Idade:**
+   - Deve ser um número inteiro entre 0 e 120
+   - Campo opcional
+
+6. **IDs de Relacionamento:**
+   - **Cargo:** Deve existir na tabela `cargo` e pertencer ao cliente
+   - **Departamento:** Deve existir na tabela `departamento` e pertencer ao cliente
+   - **Gestor:** Deve existir na tabela `usuarios` e pertencer ao mesmo cliente
+   - **Perfil de Acesso:** Deve existir na tabela `perfil_usuario`
+   - Todos os IDs de relacionamento são opcionais
+
+7. **Data de Nascimento:**
+   - Deve estar no formato ISO 8601 (YYYY-MM-DDTHH:MM:SS.sssZ)
+   - Campo opcional
 
 ---
 
@@ -463,6 +987,74 @@ curl -X GET http://localhost:3002/api/usuarios/dashboard/1 \
   -H "Authorization: Bearer <token>"
 ```
 
+### Exemplo 6: Criar Usuário
+
+```bash
+curl -X POST http://localhost:3002/api/usuarios/cliente/1 \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nome": "João Silva",
+    "email": "joao.silva@empresa.com",
+    "senha": "minhasenha123",
+    "cargo": 5,
+    "perfil_acesso": 2,
+    "idade": 28,
+    "data_nascimento": "1995-05-15T00:00:00.000Z",
+    "id_gestor": 1,
+    "id_departamento": 3
+  }'
+```
+
+### Exemplo 7: Buscar Usuários por Cliente
+
+```bash
+curl -X GET http://localhost:3002/api/usuarios/cliente/1 \
+  -H "Authorization: Bearer <token>"
+```
+
+### Exemplo 8: Buscar Usuários sem Gestor
+
+```bash
+curl -X GET http://localhost:3002/api/usuarios/sem-gestor/1 \
+  -H "Authorization: Bearer <token>"
+```
+
+### Exemplo 9: Buscar Usuários com Gestor
+
+```bash
+curl -X GET http://localhost:3002/api/usuarios/com-gestor/1 \
+  -H "Authorization: Bearer <token>"
+```
+
+### Exemplo 10: Atribuir Gestor a Usuário
+
+```bash
+curl -X PUT http://localhost:3002/api/usuarios/3/atribuir-gestor/1 \
+  -H "Authorization: Bearer <token>"
+```
+
+### Exemplo 11: Remover Gestor de Usuário
+
+```bash
+curl -X PUT http://localhost:3002/api/usuarios/3/remover-gestor/1 \
+  -H "Authorization: Bearer <token>"
+```
+
+### Exemplo 12: Buscar Todos os Usuários por Cliente
+
+```bash
+curl -X GET http://localhost:3002/api/usuarios/all-usuarios/1 \
+  -H "Authorization: Bearer <token>"
+```
+
+### Exemplo 13: Buscar Todos os Gestores por Cliente
+
+```bash
+curl -X GET http://localhost:3002/api/usuarios/all-gestores/1 \
+  -H "Authorization: Bearer <token>"
+```
+
 ---
 
 ## Testes
@@ -505,6 +1097,36 @@ Os testes incluem:
 - ✅ Validar formato da árvore da vida
 - ✅ Verificar estrutura da análise SWOT
 
+**Testes de Criação (POST /cliente/:id):**
+- ✅ Criar usuário com dados válidos
+- ❌ Criar usuário com nome vazio
+- ❌ Criar usuário com email inválido
+- ❌ Criar usuário sem senha
+- ❌ Criar usuário com email duplicado
+- ❌ Criar usuário com idade inválida
+- ❌ Criar usuário com ID de cliente inválido
+
+**Testes de Busca por Cliente (GET /cliente/:id):**
+- ✅ Buscar usuários de cliente válido
+- ✅ Buscar usuários de cliente inexistente (retorna array vazio)
+- ❌ Buscar usuários com ID de cliente inválido
+- ✅ Validar estrutura completa dos dados retornados
+- ✅ Verificar relacionamentos (cargo, departamento, gestor, perfil)
+
+**Testes de Gestão de Gestores:**
+- ✅ Buscar usuários sem gestor (GET /sem-gestor/:id)
+- ✅ Buscar usuários com gestor (GET /com-gestor/:id)
+- ✅ Atribuir gestor a usuário (PUT /:id/atribuir-gestor/:id)
+- ✅ Remover gestor de usuário (PUT /:id/remover-gestor/:id)
+- ❌ Validar erros de gestão (IDs inválidos, auto-atribuição)
+- ✅ Buscar usuários para cliente inexistente (gestão)
+
+**Testes de Busca por Perfil de Acesso:**
+- ✅ Buscar todos os usuários por cliente (GET /all-usuarios/:id)
+- ✅ Buscar todos os gestores por cliente (GET /all-gestores/:id)
+- ❌ Validar erros de perfil de acesso (IDs inválidos)
+- ✅ Buscar para cliente inexistente (perfil de acesso)
+
 ---
 
 ## Notas Importantes
@@ -526,8 +1148,15 @@ Os testes incluem:
 - [x] API GET para buscar usuários por email e cliente
 - [x] API GET para buscar usuários por gestor
 - [x] API GET para buscar dashboard do usuário
+- [x] API POST para criar usuário
+- [x] API GET para buscar usuários por cliente
+- [x] API GET para buscar usuários sem gestor
+- [x] API GET para buscar usuários com gestor
+- [x] API PUT para remover gestor de usuário
+- [x] API PUT para atribuir gestor a usuário
+- [x] API GET para buscar todos os usuários por cliente (perfil_acesso = 1)
+- [x] API GET para buscar todos os gestores por cliente (perfil_acesso in (2,3))
 - [ ] API GET para buscar usuário por ID
-- [ ] API POST para criar usuário
 - [ ] API PUT para atualizar usuário
 - [ ] API DELETE para remover usuário
 - [ ] API para buscar usuários por departamento
