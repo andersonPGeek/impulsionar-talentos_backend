@@ -83,6 +83,14 @@ router.put('/',
   arvoreDaVidaController.salvarArvoreDaVida
 );
 
+// GET /api/arvore-da-vida/verificar-periodo/:id_usuario
+// Verificar se pode atualizar árvore da vida baseado no período
+router.get('/verificar-periodo/:id_usuario',
+  idUsuarioValidation,
+  validateRequest,
+  arvoreDaVidaController.verificarPeriodoAtualizacao
+);
+
 module.exports = router;
 
 

@@ -22,7 +22,7 @@ Authorization: Bearer <token>
 
 ### 1. Buscar Habilidades por Usuário
 
-Busca todas as habilidades de um usuário específico.
+Busca todas as habilidades de um usuário específico, retornando sempre o registro mais recente para cada habilidade (baseado no `created_at`).
 
 **Endpoint:** `GET /api/habilidades-usuarios/usuario/:id_usuario`
 
@@ -92,9 +92,9 @@ Authorization: Bearer <token>
 
 ---
 
-### 2. Adicionar/Atualizar Habilidade de Usuário
+### 2. Adicionar Habilidade de Usuário
 
-Adiciona uma nova habilidade ou atualiza o nível de uma habilidade existente para um usuário.
+Adiciona uma nova habilidade para um usuário. **Sempre cria um novo registro**, nunca atualiza existentes.
 
 **Endpoint:** `POST /api/habilidades-usuarios`
 
@@ -113,7 +113,7 @@ Content-Type: application/json
 }
 ```
 
-**Resposta de Sucesso (200) - Nova habilidade:**
+**Resposta de Sucesso (200) - Habilidade adicionada:**
 ```json
 {
   "success": true,
@@ -126,24 +126,6 @@ Content-Type: application/json
     "descricao": "Runtime JavaScript para desenvolvimento backend",
     "nivel": 3,
     "created_at": "2024-01-15T12:30:00.000Z"
-  },
-  "timestamp": "2024-01-15T12:30:00.000Z"
-}
-```
-
-**Resposta de Sucesso (200) - Habilidade atualizada:**
-```json
-{
-  "success": true,
-  "message": "Habilidade atualizada com sucesso",
-  "data": {
-    "id": 1,
-    "id_usuario": 1,
-    "id_habilidade": 5,
-    "titulo": "JavaScript",
-    "descricao": "Linguagem de programação essencial para desenvolvimento frontend e backend",
-    "nivel": 5,
-    "created_at": "2024-01-15T10:30:00.000Z"
   },
   "timestamp": "2024-01-15T12:30:00.000Z"
 }
@@ -174,7 +156,7 @@ Content-Type: application/json
 
 ### 3. Buscar Habilidade Específica de Usuário
 
-Busca uma habilidade específica de um usuário.
+Busca uma habilidade específica de um usuário, retornando sempre o registro mais recente (baseado no `created_at`).
 
 **Endpoint:** `GET /api/habilidades-usuarios/:id`
 
@@ -346,8 +328,9 @@ Authorization: Bearer <token>
 
 1. **Associação de Habilidades:**
    - Usuário só pode ter habilidades do seu cargo
-   - Cada usuário pode ter apenas um nível por habilidade
-   - Se habilidade já existe, atualiza o nível
+   - **Sempre cria um novo registro**: POST nunca atualiza registros existentes
+   - **Histórico preservado**: Todos os registros são mantidos no banco de dados
+   - **GET retorna o mais recente**: Consultas sempre retornam o registro com `created_at` mais recente
 
 2. **Níveis de Proficiência:**
    - **1**: Iniciante
@@ -360,6 +343,12 @@ Authorization: Bearer <token>
    - Habilidades são vinculadas às habilidades do cargo
    - Usuário deve ter cargo válido
    - Habilidade deve existir no cargo do usuário
+
+4. **Comportamento de Criação Contínua:**
+   - **POST**: Sempre cria um novo registro com timestamp atual
+   - **GET**: Retorna o registro mais recente (maior `created_at`)
+   - **Histórico**: Todos os registros anteriores são preservados
+   - **Evolução**: Permite acompanhar a evolução dos níveis ao longo do tempo
 
 ---
 
@@ -406,6 +395,46 @@ Authorization: Bearer <token>
 
 ---
 
+## 🔄 Comportamento da API
+
+### Operação de Criação Contínua
+
+A API implementa uma lógica de **criação contínua**:
+
+1. **POST**: Sempre cria um novo registro com timestamp atual
+2. **GET**: Retorna o registro mais recente (maior `created_at`)
+3. **Histórico**: Todos os registros anteriores são preservados
+4. **Evolução**: Permite acompanhar a evolução dos níveis ao longo do tempo
+
+### Exemplo Prático
+
+**Primeira criação:**
+```json
+POST /api/habilidades-usuarios
+{
+  "id_usuario": 1,
+  "id_habilidade": 5,
+  "nivel": 3
+}
+```
+**Resultado:** Registro criado com `id: 1, created_at: 2025-01-01 10:00:00`
+
+**Segunda criação (mesmo usuário e habilidade):**
+```json
+POST /api/habilidades-usuarios
+{
+  "id_usuario": 1,
+  "id_habilidade": 5,
+  "nivel": 4
+}
+```
+**Resultado:** Novo registro criado com `id: 2, created_at: 2025-01-01 11:00:00`
+
+**GET /api/habilidades-usuarios/usuario/1:**
+**Retorna:** Registro com `id: 2` (mais recente) para a habilidade 5
+
+---
+
 ## Exemplos de Uso
 
 ### Exemplo 1: Buscar Habilidades de um Usuário
@@ -428,7 +457,7 @@ curl -X POST http://localhost:3002/api/habilidades-usuarios \
   }'
 ```
 
-### Exemplo 3: Atualizar Nível de Habilidade
+### Exemplo 3: Adicionar Nova Habilidade (Criação Contínua)
 
 ```bash
 curl -X POST http://localhost:3002/api/habilidades-usuarios \
@@ -472,10 +501,10 @@ API_URL=http://localhost:3002/api node tests/test-habilidades-usuarios.js
 Os testes incluem:
 
 **Testes CRUD:**
-- ✅ Buscar habilidades por usuário
-- ✅ Adicionar nova habilidade
-- ✅ Atualizar nível de habilidade
-- ✅ Buscar habilidade específica
+- ✅ Buscar habilidades por usuário (registro mais recente)
+- ✅ Adicionar nova habilidade (sempre INSERT)
+- ✅ Criação contínua (múltiplos POSTs)
+- ✅ Buscar habilidade específica (registro mais recente)
 - ✅ Remover habilidade
 
 **Testes de Validação:**
@@ -493,17 +522,19 @@ Os testes incluem:
 
 2. **Integridade:** Não é possível associar habilidades que não pertencem ao cargo do usuário.
 
-3. **Flexibilidade:** A mesma habilidade pode ter níveis diferentes para diferentes usuários.
+3. **Criação Contínua:** POST sempre cria novos registros, preservando histórico completo.
 
 4. **Níveis:** Sistema de 5 níveis de proficiência (1-5).
 
-5. **Unicidade:** Cada usuário pode ter apenas um nível por habilidade.
+5. **Histórico:** Todos os registros são preservados, permitindo análise de evolução.
 
-6. **Performance:** Queries otimizadas com JOINs apropriados.
+6. **Performance:** Queries otimizadas com JOINs apropriados e LATERAL JOINs para registros mais recentes.
 
 7. **Logs:** Todas as operações são logadas para auditoria.
 
 8. **Relacionamentos:** Forte integridade referencial entre usuários, cargos e habilidades.
+
+9. **Evolução:** Permite acompanhar a evolução dos níveis de habilidade ao longo do tempo.
 
 ---
 

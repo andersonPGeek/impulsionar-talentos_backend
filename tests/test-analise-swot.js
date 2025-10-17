@@ -90,20 +90,22 @@ async function makeRequest(method, endpoint, data = null) {
   }
 }
 
-// Teste 1: Salvar análise SWOT completa (POST)
+// Teste 1: Adicionar análise SWOT completa (POST)
 async function testSalvarAnaliseSwot() {
-  console.log('\n🧪 Teste 1: Salvar análise SWOT completa (POST)');
+  console.log('\n🧪 Teste 1: Adicionar análise SWOT completa (POST)');
   
   const result = await makeRequest('POST', '/analise-swot', dadosAnaliseSwot);
   
   if (result.success) {
-    console.log('✅ Sucesso! Análise SWOT salva');
+    console.log('✅ Sucesso! Análise SWOT adicionada');
     console.log('📊 Status:', result.status);
     console.log('📝 Categorias processadas:', result.data.data.categorias_processadas.length);
     console.log('📝 Total textos inseridos:', result.data.data.total_textos_inseridos);
+    console.log('📝 Total textos existentes:', result.data.data.total_textos_existentes);
+    console.log('📝 Total textos novos:', result.data.data.total_textos_novos);
     return true;
   } else {
-    console.log('❌ Falha ao salvar análise SWOT');
+    console.log('❌ Falha ao adicionar análise SWOT');
     console.log('📊 Status:', result.status);
     console.log('📝 Erro:', JSON.stringify(result.error, null, 2));
     return false;
@@ -136,34 +138,36 @@ async function testBuscarAnaliseSwot() {
   }
 }
 
-// Teste 3: Atualizar apenas algumas categorias (POST)
+// Teste 3: Adicionar textos a algumas categorias (POST)
 async function testAtualizarCategorias() {
-  console.log('\n🧪 Teste 3: Atualizar apenas algumas categorias (POST)');
+  console.log('\n🧪 Teste 3: Adicionar textos a algumas categorias (POST)');
   
   const result = await makeRequest('POST', '/analise-swot', dadosAtualizados);
   
   if (result.success) {
-    console.log('✅ Sucesso! Categorias atualizadas');
+    console.log('✅ Sucesso! Textos adicionados às categorias');
     console.log('📊 Status:', result.status);
     console.log('📝 Categorias processadas:', result.data.data.categorias_processadas.length);
     console.log('📝 Total textos inseridos:', result.data.data.total_textos_inseridos);
+    console.log('📝 Total textos existentes:', result.data.data.total_textos_existentes);
+    console.log('📝 Total textos novos:', result.data.data.total_textos_novos);
     return true;
   } else {
-    console.log('❌ Falha ao atualizar categorias');
+    console.log('❌ Falha ao adicionar textos às categorias');
     console.log('📊 Status:', result.status);
     console.log('📝 Erro:', JSON.stringify(result.error, null, 2));
     return false;
   }
 }
 
-// Teste 4: Verificar atualização (GET após POST)
+// Teste 4: Verificar adição incremental (GET após POST)
 async function testVerificarAtualizacao() {
-  console.log('\n🧪 Teste 4: Verificar atualização (GET após POST)');
+  console.log('\n🧪 Teste 4: Verificar adição incremental (GET após POST)');
   
   const result = await makeRequest('GET', `/analise-swot/${TEST_USER_ID}`);
   
   if (result.success) {
-    console.log('✅ Sucesso! Verificação da atualização');
+    console.log('✅ Sucesso! Verificação da adição incremental');
     console.log('📊 Status:', result.status);
     
     const categorias = result.data.data.categorias;
@@ -187,25 +191,32 @@ async function testVerificarAtualizacao() {
       console.log('⚠️ Categorias não enviadas foram alteradas');
     }
     
+    // Verificar se os textos existentes foram preservados
+    if (fortalezas && fortalezas.textos.length >= 3) {
+      console.log('✅ Textos existentes foram preservados e novos foram adicionados');
+    } else {
+      console.log('⚠️ Textos existentes podem ter sido perdidos');
+    }
+    
     return true;
   } else {
-    console.log('❌ Falha ao verificar atualização');
+    console.log('❌ Falha ao verificar adição incremental');
     console.log('📊 Status:', result.status);
     console.log('📝 Erro:', JSON.stringify(result.error, null, 2));
     return false;
   }
 }
 
-// Teste 5: Limpar uma categoria (array vazio)
+// Teste 5: Testar array vazio (não deve alterar nada)
 async function testLimparCategoria() {
-  console.log('\n🧪 Teste 5: Limpar uma categoria (array vazio)');
+  console.log('\n🧪 Teste 5: Testar array vazio (não deve alterar nada)');
   
   const dadosLimpar = {
     id_usuario: TEST_USER_ID,
     textos_por_categoria: [
       {
         id_categoria_swot: 3, // Oportunidades
-        textos: [] // Array vazio para limpar
+        textos: [] // Array vazio - não deve alterar nada
       }
     ]
   };
@@ -213,13 +224,23 @@ async function testLimparCategoria() {
   const result = await makeRequest('POST', '/analise-swot', dadosLimpar);
   
   if (result.success) {
-    console.log('✅ Sucesso! Categoria limpa');
+    console.log('✅ Sucesso! Array vazio processado corretamente');
     console.log('📊 Status:', result.status);
     console.log('📝 Categorias processadas:', result.data.data.categorias_processadas.length);
     console.log('📝 Total textos inseridos:', result.data.data.total_textos_inseridos);
+    console.log('📝 Total textos existentes:', result.data.data.total_textos_existentes);
+    console.log('📝 Total textos novos:', result.data.data.total_textos_novos);
+    
+    // Verificar se nenhum texto foi inserido
+    if (result.data.data.total_textos_inseridos === 0) {
+      console.log('✅ Nenhum texto foi inserido (comportamento correto)');
+    } else {
+      console.log('⚠️ Textos foram inseridos quando não deveriam');
+    }
+    
     return true;
   } else {
-    console.log('❌ Falha ao limpar categoria');
+    console.log('❌ Falha ao processar array vazio');
     console.log('📊 Status:', result.status);
     console.log('📝 Erro:', JSON.stringify(result.error, null, 2));
     return false;
@@ -329,21 +350,67 @@ async function testBuscarAnaliseInexistente() {
   }
 }
 
+// Teste 10: Testar inserção incremental com textos duplicados
+async function testInsercaoIncrementalDuplicados() {
+  console.log('\n🧪 Teste 10: Testar inserção incremental com textos duplicados');
+  
+  const dadosDuplicados = {
+    id_usuario: TEST_USER_ID,
+    textos_por_categoria: [
+      {
+        id_categoria_swot: 1, // Fortalezas
+        textos: [
+          "Tenho boa comunicação", // Já existe
+          "Sou organizado", // Já existe
+          "Trabalho bem em equipe", // Já existe
+          "Tenho experiência sólida" // Novo
+        ]
+      }
+    ]
+  };
+  
+  const result = await makeRequest('POST', '/analise-swot', dadosDuplicados);
+  
+  if (result.success) {
+    console.log('✅ Sucesso! Inserção incremental com duplicados testada');
+    console.log('📊 Status:', result.status);
+    console.log('📝 Categorias processadas:', result.data.data.categorias_processadas.length);
+    console.log('📝 Total textos inseridos:', result.data.data.total_textos_inseridos);
+    console.log('📝 Total textos existentes:', result.data.data.total_textos_existentes);
+    console.log('📝 Total textos novos:', result.data.data.total_textos_novos);
+    
+    // Verificar se apenas 1 texto foi inserido (o novo)
+    if (result.data.data.total_textos_inseridos === 1) {
+      console.log('✅ Apenas o texto novo foi inserido (comportamento correto)');
+    } else {
+      console.log('⚠️ Quantidade incorreta de textos inseridos');
+    }
+    
+    return true;
+  } else {
+    console.log('❌ Falha no teste de inserção incremental com duplicados');
+    console.log('📊 Status:', result.status);
+    console.log('📝 Erro:', JSON.stringify(result.error, null, 2));
+    return false;
+  }
+}
+
 // Executar todos os testes
 async function runAllTests() {
   console.log('🚀 Iniciando execução dos testes da API Análise SWOT');
   console.log('⏰', new Date().toISOString());
   
   const tests = [
-    { name: 'Salvar análise SWOT completa', fn: testSalvarAnaliseSwot },
+    { name: 'Adicionar análise SWOT completa', fn: testSalvarAnaliseSwot },
     { name: 'Buscar análise SWOT', fn: testBuscarAnaliseSwot },
-    { name: 'Atualizar categorias', fn: testAtualizarCategorias },
-    { name: 'Verificar atualização', fn: testVerificarAtualizacao },
-    { name: 'Limpar categoria', fn: testLimparCategoria },
+    { name: 'Adicionar textos a categorias', fn: testAtualizarCategorias },
+    { name: 'Verificar adição incremental', fn: testVerificarAtualizacao },
+    { name: 'Testar array vazio', fn: testLimparCategoria },
     { name: 'Validação campos obrigatórios', fn: testValidacaoCamposObrigatorios },
     { name: 'Validação categoria inválida', fn: testValidacaoCategoriaInvalida },
     { name: 'Validação texto vazio', fn: testValidacaoTextoVazio },
-    { name: 'Buscar análise inexistente', fn: testBuscarAnaliseInexistente }
+    { name: 'Buscar análise inexistente', fn: testBuscarAnaliseInexistente },
+    { name: 'Inserção incremental com duplicados', fn: testInsercaoIncrementalDuplicados }
   ];
   
   let passed = 0;
@@ -397,6 +464,7 @@ module.exports = {
   testValidacaoCategoriaInvalida,
   testValidacaoTextoVazio,
   testBuscarAnaliseInexistente,
+  testInsercaoIncrementalDuplicados,
   runAllTests
 };
 

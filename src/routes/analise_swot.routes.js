@@ -49,6 +49,14 @@ router.post('/',
   analiseSwotController.salvarAnaliseSwot
 );
 
+// GET /api/analise-swot/verificar-periodo/:id_usuario
+// Verificar se pode atualizar análise SWOT baseado no período
+router.get('/verificar-periodo/:id_usuario',
+  idUsuarioValidation,
+  validateRequest,
+  analiseSwotController.verificarPeriodoAtualizacao
+);
+
 module.exports = router;
 
 

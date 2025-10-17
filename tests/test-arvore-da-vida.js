@@ -105,55 +105,64 @@ async function testBuscarArvoreDaVida() {
   }
 }
 
-// Teste 3: Atualizar árvore da vida (PUT)
+// Teste 3: Criar nova árvore da vida (PUT)
 async function testAtualizarArvoreDaVida() {
-  console.log('\n🧪 Teste 3: Atualizar árvore da vida (PUT)');
+  console.log('\n🧪 Teste 3: Criar nova árvore da vida (PUT)');
   
   const result = await makeRequest('PUT', '/arvore-da-vida', dadosAtualizados);
   
   if (result.success) {
-    console.log('✅ Sucesso! Árvore da vida atualizada');
+    console.log('✅ Sucesso! Nova árvore da vida criada');
     console.log('📊 Status:', result.status);
-    console.log('📝 Dados atualizados:', JSON.stringify(result.data.data.arvore_da_vida, null, 2));
+    console.log('📝 Dados criados:', JSON.stringify(result.data.data.arvore_da_vida, null, 2));
+    console.log('📝 Operação:', result.data.data.operacao);
     return true;
   } else {
-    console.log('❌ Falha ao atualizar árvore da vida');
+    console.log('❌ Falha ao criar nova árvore da vida');
     console.log('📊 Status:', result.status);
     console.log('📝 Erro:', JSON.stringify(result.error, null, 2));
     return false;
   }
 }
 
-// Teste 4: Verificar atualização (GET após PUT)
+// Teste 4: Verificar que GET retorna o registro mais recente (GET após PUT)
 async function testVerificarAtualizacao() {
-  console.log('\n🧪 Teste 4: Verificar atualização (GET após PUT)');
+  console.log('\n🧪 Teste 4: Verificar que GET retorna o registro mais recente (GET após PUT)');
   
   const result = await makeRequest('GET', `/arvore-da-vida/${TEST_USER_ID}`);
   
   if (result.success) {
-    console.log('✅ Sucesso! Verificação da atualização');
+    console.log('✅ Sucesso! Verificação do registro mais recente');
     console.log('📊 Status:', result.status);
     
     const arvore = result.data.data.arvore_da_vida;
-    const mudancas = [];
     
-    // Verificar se os valores foram atualizados
+    // Verificar se os valores correspondem aos dados mais recentes (dadosAtualizados)
+    const valoresCorretos = [];
+    const valoresIncorretos = [];
+    
     Object.keys(dadosAtualizados).forEach(key => {
-      if (key !== 'id_usuario' && arvore[key] !== dadosAtualizados[key]) {
-        mudancas.push(`${key}: ${dadosArvoreDaVida[key]} → ${arvore[key]}`);
+      if (key !== 'id_usuario') {
+        if (arvore[key] === dadosAtualizados[key]) {
+          valoresCorretos.push(`${key}: ${arvore[key]}`);
+        } else {
+          valoresIncorretos.push(`${key}: esperado ${dadosAtualizados[key]}, recebido ${arvore[key]}`);
+        }
       }
     });
     
-    if (mudancas.length > 0) {
-      console.log('📝 Mudanças detectadas:', mudancas);
+    if (valoresIncorretos.length === 0) {
+      console.log('✅ GET retornou o registro mais recente corretamente');
+      console.log('📝 Valores corretos:', valoresCorretos);
     } else {
-      console.log('⚠️ Nenhuma mudança detectada');
+      console.log('⚠️ GET não retornou o registro mais recente');
+      console.log('📝 Valores incorretos:', valoresIncorretos);
     }
     
-    console.log('📝 Dados finais:', JSON.stringify(arvore, null, 2));
-    return true;
+    console.log('📝 Dados retornados:', JSON.stringify(arvore, null, 2));
+    return valoresIncorretos.length === 0;
   } else {
-    console.log('❌ Falha ao verificar atualização');
+    console.log('❌ Falha ao verificar registro mais recente');
     console.log('📊 Status:', result.status);
     console.log('📝 Erro:', JSON.stringify(result.error, null, 2));
     return false;
@@ -225,6 +234,62 @@ async function testBuscarArvoreInexistente() {
   }
 }
 
+// Teste 8: Testar criação contínua (múltiplos POSTs)
+async function testCriacaoContinua() {
+  console.log('\n🧪 Teste 8: Testar criação contínua (múltiplos POSTs)');
+  
+  const dadosTerceiraCriacao = {
+    id_usuario: TEST_USER_ID,
+    pontuacao_geral: 9,
+    criatividade_hobbie: 10,
+    plenitude_felicidade: 8,
+    espiritualidade: 7,
+    saude_disposicao: 9,
+    desenvolvimento_intelectual: 10,
+    equilibrio_emocional: 8,
+    familia: 10,
+    desenvolvimento_amoroso: 9,
+    vida_social: 8,
+    realizacao_proposito: 10,
+    recursos_financeiros: 7,
+    contribuicao_social: 9
+  };
+  
+  // Fazer uma terceira criação
+  const result = await makeRequest('POST', '/arvore-da-vida', dadosTerceiraCriacao);
+  
+  if (result.success) {
+    console.log('✅ Sucesso! Terceira árvore da vida criada');
+    console.log('📊 Status:', result.status);
+    console.log('📝 Operação:', result.data.data.operacao);
+    
+    // Verificar se GET retorna a terceira criação (mais recente)
+    const getResult = await makeRequest('GET', `/arvore-da-vida/${TEST_USER_ID}`);
+    
+    if (getResult.success) {
+      const arvore = getResult.data.data.arvore_da_vida;
+      
+      // Verificar se os valores correspondem à terceira criação
+      if (arvore.pontuacao_geral === dadosTerceiraCriacao.pontuacao_geral &&
+          arvore.criatividade_hobbie === dadosTerceiraCriacao.criatividade_hobbie) {
+        console.log('✅ GET retornou corretamente a terceira criação (mais recente)');
+        return true;
+      } else {
+        console.log('⚠️ GET não retornou a terceira criação');
+        return false;
+      }
+    } else {
+      console.log('❌ Falha ao buscar após terceira criação');
+      return false;
+    }
+  } else {
+    console.log('❌ Falha ao criar terceira árvore da vida');
+    console.log('📊 Status:', result.status);
+    console.log('📝 Erro:', JSON.stringify(result.error, null, 2));
+    return false;
+  }
+}
+
 // Executar todos os testes
 async function runAllTests() {
   console.log('🚀 Iniciando execução dos testes da API Árvore da Vida');
@@ -233,11 +298,12 @@ async function runAllTests() {
   const tests = [
     { name: 'Criar árvore da vida', fn: testCriarArvoreDaVida },
     { name: 'Buscar árvore da vida', fn: testBuscarArvoreDaVida },
-    { name: 'Atualizar árvore da vida', fn: testAtualizarArvoreDaVida },
-    { name: 'Verificar atualização', fn: testVerificarAtualizacao },
+    { name: 'Criar nova árvore da vida (PUT)', fn: testAtualizarArvoreDaVida },
+    { name: 'Verificar registro mais recente', fn: testVerificarAtualizacao },
     { name: 'Validação campos obrigatórios', fn: testValidacaoCamposObrigatorios },
     { name: 'Validação valores pontuação', fn: testValidacaoValoresPontuacao },
-    { name: 'Buscar árvore inexistente', fn: testBuscarArvoreInexistente }
+    { name: 'Buscar árvore inexistente', fn: testBuscarArvoreInexistente },
+    { name: 'Criação contínua (múltiplos POSTs)', fn: testCriacaoContinua }
   ];
   
   let passed = 0;
@@ -289,6 +355,7 @@ module.exports = {
   testValidacaoCamposObrigatorios,
   testValidacaoValoresPontuacao,
   testBuscarArvoreInexistente,
+  testCriacaoContinua,
   runAllTests
 };
 

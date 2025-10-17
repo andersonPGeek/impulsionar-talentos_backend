@@ -662,3 +662,6 @@ Os testes cobrem:
 6. **Sanitização:** Entradas são sanitizadas para prevenir ataques
 7. **Relacionamentos:** Foreign keys garantem integridade referencial
 
+
+
+

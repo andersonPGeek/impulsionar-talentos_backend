@@ -35,7 +35,7 @@ A Árvore da Vida é uma ferramenta de avaliação que permite aos usuários pon
 
 ### 1. GET /api/arvore-da-vida/:id_usuario
 
-Busca a árvore da vida de um usuário específico.
+Busca a árvore da vida mais recente de um usuário específico (baseado no `created_at`).
 
 #### Parâmetros
 
@@ -87,11 +87,11 @@ Busca a árvore da vida de um usuário específico.
 
 ### 2. POST /api/arvore-da-vida
 
-Cria uma nova árvore da vida para um usuário.
+Cria uma nova árvore da vida para um usuário. **Sempre cria um novo registro**, nunca atualiza existentes.
 
 ### 3. PUT /api/arvore-da-vida
 
-Atualiza a árvore da vida existente de um usuário.
+Cria uma nova árvore da vida para um usuário. **Sempre cria um novo registro**, nunca atualiza existentes.
 
 #### Body da Requisição
 
@@ -146,17 +146,17 @@ Atualiza a árvore da vida existente de um usuário.
 }
 ```
 
-#### Resposta de Sucesso - Atualização (200)
+#### Resposta de Sucesso - Criação (201)
 
 ```json
 {
   "success": true,
-  "message": "Árvore da vida atualizada com sucesso",
+  "message": "Árvore da vida criada com sucesso",
   "data": {
     "id_usuario": 1,
     "arvore_da_vida": {
-      "id": 1,
-      "created_at": "2025-08-17T23:44:57.481Z",
+      "id": 2,
+      "created_at": "2025-08-17T23:50:57.481Z",
       "pontuacao_geral": 8,
       "criatividade_hobbie": 9,
       "plenitude_felicidade": 7,
@@ -172,9 +172,9 @@ Atualiza a árvore da vida existente de um usuário.
       "contribuicao_social": 8,
       "id_usuario": 1
     },
-    "operacao": "atualizado"
+    "operacao": "criado"
   },
-  "timestamp": "2025-08-17T23:44:57.481Z"
+  "timestamp": "2025-08-17T23:50:57.481Z"
 }
 ```
 
@@ -264,16 +264,17 @@ curl -X PUT http://localhost:3002/api/arvore-da-vida \
 
 ### Validações de Negócio
 
-- Se não existir registro para o usuário, será criado um novo
-- Se já existir registro, será atualizado o existente
+- **Sempre cria um novo registro**: Tanto POST quanto PUT sempre inserem um novo registro
+- **Histórico preservado**: Registros anteriores são mantidos no banco de dados
+- **GET retorna o mais recente**: A consulta sempre retorna o registro com `created_at` mais recente
 - Todos os campos de pontuação são obrigatórios
 
 ## 📋 Códigos de Resposta
 
 | Código | Descrição |
 |--------|-----------|
-| 200 | Sucesso (GET, PUT) |
-| 201 | Criado com sucesso (POST) |
+| 200 | Sucesso (GET) |
+| 201 | Criado com sucesso (POST, PUT) |
 | 400 | Dados inválidos |
 | 404 | Árvore da vida não encontrada |
 | 500 | Erro interno do servidor |
@@ -305,10 +306,50 @@ A API inclui logs detalhados para facilitar o debug:
 ## 🚀 Considerações de Implementação
 
 1. **Transações**: Todas as operações de escrita usam transações para garantir consistência
-2. **Logs Detalhados**: Implementação de logs para facilitar debug e monitoramento
-3. **Validação Robusta**: Validação completa de todos os campos obrigatórios
-4. **Flexibilidade**: Suporte para criação e atualização com o mesmo endpoint
-5. **Padrão de Resposta**: Respostas padronizadas seguindo o padrão da API
+2. **Sempre INSERT**: POST e PUT sempre criam novos registros, nunca atualizam existentes
+3. **Histórico Completo**: Todos os registros são preservados, permitindo análise de evolução
+4. **GET Inteligente**: Retorna sempre o registro mais recente baseado no `created_at`
+5. **Logs Detalhados**: Implementação de logs para facilitar debug e monitoramento
+6. **Validação Robusta**: Validação completa de todos os campos obrigatórios
+7. **Padrão de Resposta**: Respostas padronizadas seguindo o padrão da API
+
+## 🔄 Comportamento da API
+
+### Operação de Criação Contínua
+
+A API implementa uma lógica de **criação contínua**:
+
+1. **POST/PUT**: Sempre cria um novo registro com timestamp atual
+2. **GET**: Retorna o registro mais recente (maior `created_at`)
+3. **Histórico**: Todos os registros anteriores são preservados
+4. **Evolução**: Permite acompanhar a evolução das pontuações ao longo do tempo
+
+### Exemplo Prático
+
+**Primeira criação:**
+```json
+{
+  "id_usuario": 1,
+  "pontuacao_geral": 7,
+  "criatividade_hobbie": 8
+  // ... outros campos
+}
+```
+**Resultado:** Registro criado com `id: 1, created_at: 2025-01-01 10:00:00`
+
+**Segunda criação (mesmo usuário):**
+```json
+{
+  "id_usuario": 1,
+  "pontuacao_geral": 8,
+  "criatividade_hobbie": 9
+  // ... outros campos
+}
+```
+**Resultado:** Novo registro criado com `id: 2, created_at: 2025-01-01 11:00:00`
+
+**GET /api/arvore-da-vida/1:**
+**Retorna:** Registro com `id: 2` (mais recente)
 
 
 

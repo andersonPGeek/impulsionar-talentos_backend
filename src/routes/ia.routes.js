@@ -20,3 +20,6 @@ router.post('/gerar-habilidades', iaController.gerarHabilidades);
 module.exports = router;
 
 
+
+
+

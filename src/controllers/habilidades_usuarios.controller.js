@@ -47,6 +47,7 @@ class HabilidadesUsuariosController extends BaseController {
       }
 
       // Buscar habilidades do usuário com informações da habilidade do cargo
+      // Para cada habilidade, retorna apenas o registro mais recente
       const habilidadesQuery = `
         SELECT 
           hu.id,
@@ -58,7 +59,13 @@ class HabilidadesUsuariosController extends BaseController {
         FROM cargo c
         INNER JOIN habilidades_cargo hc ON c.id = hc.id_cargo
         INNER JOIN usuarios u on u.cargo = c.id
-        LEFT JOIN habilidades_usuarios hu ON hu.id_habilidade = hc.id
+        LEFT JOIN LATERAL (
+          SELECT id, nivel, created_at
+          FROM habilidades_usuarios hu2
+          WHERE hu2.id_habilidade = hc.id AND hu2.id_usuario = u.id
+          ORDER BY hu2.created_at DESC
+          LIMIT 1
+        ) hu ON true
         WHERE u.id = $1
         ORDER BY hc.habilidade
       `;
@@ -177,53 +184,22 @@ class HabilidadesUsuariosController extends BaseController {
 
       const habilidade = habilidadeResult.rows[0];
 
-      // Verificar se já existe registro para esta habilidade e usuário
-      const existeQuery = `
-        SELECT id, nivel FROM habilidades_usuarios
-        WHERE id_usuario = $1 AND id_habilidade = $2
+      // Sempre criar nova habilidade (sempre INSERT)
+      const criarQuery = `
+        INSERT INTO habilidades_usuarios (id_usuario, id_habilidade, nivel)
+        VALUES ($1, $2, $3)
+        RETURNING id, nivel, created_at
       `;
-      const existeResult = await client.query(existeQuery, [id_usuario, id_habilidade]);
+      
+      const criarResult = await client.query(criarQuery, [id_usuario, id_habilidade, nivel]);
+      const resultado = criarResult.rows[0];
 
-      let resultado;
-
-      if (existeResult.rows.length > 0) {
-        // Atualizar habilidade existente
-        const atualizarQuery = `
-          UPDATE habilidades_usuarios 
-          SET nivel = $1
-          WHERE id_usuario = $2 AND id_habilidade = $3
-          RETURNING id, nivel, created_at
-        `;
-        
-        const atualizarResult = await client.query(atualizarQuery, [nivel, id_usuario, id_habilidade]);
-        resultado = atualizarResult.rows[0];
-
-        logger.info('Habilidade de usuário atualizada com sucesso', {
-          id: resultado.id,
-          id_usuario,
-          id_habilidade,
-          nivel_anterior: existeResult.rows[0].nivel,
-          nivel_novo: nivel
-        });
-
-      } else {
-        // Criar nova habilidade
-        const criarQuery = `
-          INSERT INTO habilidades_usuarios (id_usuario, id_habilidade, nivel)
-          VALUES ($1, $2, $3)
-          RETURNING id, nivel, created_at
-        `;
-        
-        const criarResult = await client.query(criarQuery, [id_usuario, id_habilidade, nivel]);
-        resultado = criarResult.rows[0];
-
-        logger.info('Habilidade de usuário criada com sucesso', {
-          id: resultado.id,
-          id_usuario,
-          id_habilidade,
-          nivel
-        });
-      }
+      logger.info('Habilidade de usuário criada com sucesso', {
+        id: resultado.id,
+        id_usuario,
+        id_habilidade,
+        nivel
+      });
 
       return ApiResponse.success(res, {
         id: resultado.id,
@@ -233,7 +209,7 @@ class HabilidadesUsuariosController extends BaseController {
         descricao: habilidade.descricao,
         nivel: resultado.nivel,
         created_at: resultado.created_at
-      }, existeResult.rows.length > 0 ? 'Habilidade atualizada com sucesso' : 'Habilidade adicionada com sucesso');
+      }, 'Habilidade adicionada com sucesso');
 
     } catch (error) {
       logger.error('Erro ao adicionar/atualizar habilidade de usuário', { 
@@ -348,7 +324,7 @@ class HabilidadesUsuariosController extends BaseController {
         });
       }
 
-      // Buscar habilidade específica
+      // Buscar habilidade específica (sempre o mais recente)
       const habilidadeQuery = `
         SELECT 
           hu.id,
@@ -366,6 +342,8 @@ class HabilidadesUsuariosController extends BaseController {
         INNER JOIN cargo c ON u.cargo = c.id
         INNER JOIN habilidades_cargo hc ON hu.id_habilidade = hc.id
         WHERE hu.id = $1
+        ORDER BY hu.created_at DESC
+        LIMIT 1
       `;
       
       const habilidadeResult = await client.query(habilidadeQuery, [id]);

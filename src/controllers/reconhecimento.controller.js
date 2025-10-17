@@ -963,3 +963,6 @@ class ReconhecimentoController extends BaseController {
 
 module.exports = new ReconhecimentoController();
 
+
+
+

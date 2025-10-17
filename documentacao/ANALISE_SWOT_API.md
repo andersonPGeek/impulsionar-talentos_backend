@@ -96,7 +96,7 @@ Busca a análise SWOT de um usuário específico, agrupada por categoria.
 
 ### 2. POST /api/analise-swot
 
-Salva/atualiza a análise SWOT de um usuário. Esta operação **substitui** todos os textos existentes por categoria.
+Adiciona novos textos à análise SWOT de um usuário. Esta operação **insere apenas textos novos** que ainda não existem para cada categoria, mantendo os textos existentes.
 
 #### Body da Requisição
 
@@ -142,45 +142,53 @@ Salva/atualiza a análise SWOT de um usuário. Esta operação **substitui** tod
 ```json
 {
   "success": true,
-  "message": "Análise SWOT salva com sucesso",
+  "message": "Análise SWOT atualizada com sucesso - apenas textos novos foram inseridos",
   "data": {
     "id_usuario": 1,
     "categorias_processadas": [
       {
         "id_categoria_swot": 1,
-        "textos_inseridos": 3,
-        "textos": [
-          "Tenho boa comunicação",
-          "Sou organizado",
+        "textos_existentes": 2,
+        "textos_novos": 1,
+        "textos_inseridos": 1,
+        "textos_novos_lista": [
           "Trabalho bem em equipe"
         ]
       },
       {
         "id_categoria_swot": 2,
+        "textos_existentes": 0,
+        "textos_novos": 2,
         "textos_inseridos": 2,
-        "textos": [
+        "textos_novos_lista": [
           "Tenho dificuldade com prazos",
           "Sou muito perfeccionista"
         ]
       },
       {
         "id_categoria_swot": 3,
+        "textos_existentes": 0,
+        "textos_novos": 2,
         "textos_inseridos": 2,
-        "textos": [
+        "textos_novos_lista": [
           "Mercado em crescimento",
           "Novas tecnologias disponíveis"
         ]
       },
       {
         "id_categoria_swot": 4,
+        "textos_existentes": 0,
+        "textos_novos": 2,
         "textos_inseridos": 2,
-        "textos": [
+        "textos_novos_lista": [
           "Concorrência acirrada",
           "Mudanças regulatórias"
         ]
       }
     ],
-    "total_textos_inseridos": 9
+    "total_textos_inseridos": 7,
+    "total_textos_existentes": 2,
+    "total_textos_novos": 7
   },
   "timestamp": "2025-08-17T23:44:57.481Z"
 }
@@ -313,9 +321,11 @@ curl -X POST http://localhost:3002/api/analise-swot \
 
 ### Validações de Negócio
 
-- **Substituição por categoria**: Para cada categoria enviada, todos os textos existentes são deletados e os novos são inseridos
+- **Inserção incremental**: Para cada categoria enviada, apenas textos novos (que não existem) são inseridos
+- **Preservação de dados**: Textos existentes são mantidos e não são alterados ou removidos
 - **Categorias não enviadas**: Categorias não incluídas na requisição permanecem inalteradas
-- **Array vazio**: Se uma categoria tiver array vazio, todos os textos dessa categoria são removidos
+- **Array vazio**: Se uma categoria tiver array vazio, nenhuma alteração é feita nessa categoria
+- **Comparação de texto**: A comparação é feita por texto exato (após trim), ignorando espaços em branco
 
 ## 📋 Códigos de Resposta
 
@@ -356,27 +366,30 @@ A API inclui logs detalhados para facilitar o debug:
 ## 🚀 Considerações de Implementação
 
 1. **Transações**: Todas as operações de escrita usam transações para garantir consistência
-2. **Substituição por Categoria**: Cada categoria é processada independentemente
-3. **Logs Detalhados**: Implementação de logs para facilitar debug e monitoramento
-4. **Validação Robusta**: Validação completa de todos os campos obrigatórios
-5. **Flexibilidade**: Permite atualizar apenas algumas categorias
-6. **Padrão de Resposta**: Respostas padronizadas seguindo o padrão da API
+2. **Inserção Incremental**: Cada categoria é processada independentemente, inserindo apenas textos novos
+3. **Preservação de Dados**: Textos existentes nunca são removidos ou alterados
+4. **Logs Detalhados**: Implementação de logs para facilitar debug e monitoramento
+5. **Validação Robusta**: Validação completa de todos os campos obrigatórios
+6. **Flexibilidade**: Permite adicionar textos a apenas algumas categorias
+7. **Padrão de Resposta**: Respostas padronizadas seguindo o padrão da API
+8. **Comparação Inteligente**: Comparação de textos após trim para evitar duplicatas por espaços
 
 ## 🔄 Comportamento da API
 
-### Operação de Substituição
+### Operação de Inserção Incremental
 
-A API implementa uma lógica de **substituição por categoria**:
+A API implementa uma lógica de **inserção incremental por categoria**:
 
 1. **Para cada categoria** na requisição:
-   - Deleta todos os textos existentes para aquela categoria e usuário
-   - Insere os novos textos fornecidos
+   - Busca todos os textos existentes para aquela categoria e usuário
+   - Compara os textos enviados com os existentes
+   - Insere apenas os textos que ainda não existem
 
 2. **Categorias não incluídas** na requisição:
    - Permanecem inalteradas no banco de dados
 
 3. **Array vazio** para uma categoria:
-   - Remove todos os textos daquela categoria
+   - Nenhuma alteração é feita nessa categoria
 
 ### Exemplo Prático
 
@@ -391,21 +404,50 @@ A API implementa uma lógica de **substituição por categoria**:
   "textos_por_categoria": [
     {
       "id_categoria_swot": 1,
-      "textos": ["Excelente comunicação", "Muito organizado"]
+      "textos": ["Comunicação", "Organização", "Trabalho em equipe"]
     },
     {
       "id_categoria_swot": 2,
-      "textos": []
+      "textos": ["Prazos", "Perfeccionismo"]
     }
   ]
 }
 ```
 
 **Estado final:**
-- Fortalezas: ["Excelente comunicação", "Muito organizado"] (atualizado)
-- Fraquezas: [] (limpo)
+- Fortalezas: ["Comunicação", "Organização", "Trabalho em equipe"] (adicionado "Trabalho em equipe")
+- Fraquezas: ["Prazos", "Perfeccionismo"] (adicionado "Perfeccionismo")
 - Oportunidades: (inalterado)
 - Ameaças: (inalterado)
+
+**Resposta da API:**
+```json
+{
+  "success": true,
+  "message": "Análise SWOT atualizada com sucesso - apenas textos novos foram inseridos",
+  "data": {
+    "categorias_processadas": [
+      {
+        "id_categoria_swot": 1,
+        "textos_existentes": 2,
+        "textos_novos": 1,
+        "textos_inseridos": 1,
+        "textos_novos_lista": ["Trabalho em equipe"]
+      },
+      {
+        "id_categoria_swot": 2,
+        "textos_existentes": 1,
+        "textos_novos": 1,
+        "textos_inseridos": 1,
+        "textos_novos_lista": ["Perfeccionismo"]
+      }
+    ],
+    "total_textos_inseridos": 2,
+    "total_textos_existentes": 3,
+    "total_textos_novos": 2
+  }
+}
+```
 
 
 

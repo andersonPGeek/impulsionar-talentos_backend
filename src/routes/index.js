@@ -19,6 +19,7 @@ const senioridadeRoutes = require('./senioridade.routes');
 const iaRoutes = require('./ia.routes');
 const habilidadesUsuariosRoutes = require('./habilidades_usuarios.routes');
 const reconhecimentoRoutes = require('./reconhecimento.routes');
+const relatorioExecutivoRoutes = require('./relatorio_executivo.routes');
 // const talentosRoutes = require('./talentos.routes');
 
 // Rota de teste da API
@@ -44,6 +45,7 @@ router.get('/test', (req, res) => {
       ia: '/api/ia',
       habilidadesUsuarios: '/api/habilidades-usuarios',
       reconhecimento: '/api/reconhecimento',
+      relatorioExecutivo: '/api/relatorio-executivo',
       talentos: '/api/talentos'
     }
   });
@@ -67,6 +69,7 @@ router.use('/senioridades', senioridadeRoutes);
 router.use('/ia', iaRoutes);
 router.use('/habilidades-usuarios', habilidadesUsuariosRoutes);
 router.use('/reconhecimento', reconhecimentoRoutes);
+router.use('/relatorio-executivo', relatorioExecutivoRoutes);
 // router.use('/talentos', talentosRoutes);
 
 module.exports = router; 

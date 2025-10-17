@@ -34,3 +34,6 @@ router.delete('/:id', habilidadesUsuariosController.removerHabilidade);
 module.exports = router;
 
 
+
+
+
