@@ -30,6 +30,35 @@ class ApiResponse {
     });
   }
 
+  // Resposta de erro de requisição
+  static badRequest(res, data = null, message = 'Requisição inválida') {
+    return res.status(400).json({
+      success: false,
+      message,
+      data,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Resposta de criado
+  static created(res, data = null, message = 'Recurso criado com sucesso') {
+    return res.status(201).json({
+      success: true,
+      message,
+      data,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Resposta de erro interno
+  static internalError(res, message = 'Erro interno do servidor') {
+    return res.status(500).json({
+      success: false,
+      message,
+      timestamp: new Date().toISOString()
+    });
+  }
+
   // Resposta de não encontrado
   static notFound(res, message = 'Recurso não encontrado') {
     return res.status(404).json({
