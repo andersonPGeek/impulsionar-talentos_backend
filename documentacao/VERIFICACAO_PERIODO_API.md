@@ -288,3 +288,4 @@ const verificarPeriodoArvore = async (idUsuario) => {
 4. **Timezone**: Todas as datas são tratadas em UTC
 5. **Performance**: As consultas são otimizadas para buscar apenas os dados necessários
 
+
