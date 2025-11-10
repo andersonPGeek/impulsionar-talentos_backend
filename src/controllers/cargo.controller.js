@@ -3,6 +3,33 @@ const { pool } = require('../utils/supabase');
 const logger = require('../utils/logger');
 const ApiResponse = require('../utils/response');
 
+const parseJsonValue = (value, fallback) => {
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value);
+    } catch (error) {
+      return fallback;
+    }
+  }
+
+  return value;
+};
+
+const mapCargoDetalhado = (row) => ({
+  id: row.id,
+  nome_cargo: row.nome_cargo,
+  descricao: row.descricao,
+  created_at: row.created_at,
+  id_cliente: row.id_cliente ? parseInt(row.id_cliente) : null,
+  setor: parseJsonValue(row.setor, null),
+  senioridade: parseJsonValue(row.senioridade, null),
+  habilidades: parseJsonValue(row.habilidades, [])
+});
+
 class CargoController extends BaseController {
   /**
    * Buscar todos os cargos por cliente
@@ -67,6 +94,92 @@ class CargoController extends BaseController {
     } catch (error) {
       logger.error('Erro ao buscar cargos por cliente', { 
         error: error.message, 
+        stack: error.stack,
+        cliente_id: req.params.id_cliente
+      });
+      return ApiResponse.internalError(res);
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Buscar cargos detalhados por cliente
+   * GET /api/cargos/cliente/:id_cliente/detalhado
+   */
+  async buscarCargosDetalhadosPorCliente(req, res) {
+    const client = await pool.connect();
+
+    try {
+      const { id_cliente } = req.params;
+
+      logger.info('Iniciando busca detalhada de cargos por cliente', {
+        id_cliente
+      });
+
+      if (!id_cliente || isNaN(id_cliente)) {
+        return ApiResponse.badRequest(res, {
+          error: 'INVALID_CLIENT_ID',
+          message: 'ID do cliente é obrigatório e deve ser um número válido'
+        });
+      }
+
+      const cargosQuery = `
+        SELECT
+          c.id,
+          c.nome_cargo,
+          c.descricao,
+          c.created_at,
+          c.id_cliente,
+          CASE
+            WHEN se.id IS NULL THEN NULL
+            ELSE json_build_object(
+              'id', se.id,
+              'senioridade', se.senioridade
+            )
+          END AS senioridade,
+          CASE
+            WHEN st.id IS NULL THEN NULL
+            ELSE json_build_object(
+              'id', st.id,
+              'nome_setor', st.nome_setor
+            )
+          END AS setor,
+          COALESCE(
+            json_agg(
+              DISTINCT jsonb_build_object(
+                'id', hc.id,
+                'habilidade', hc.habilidade,
+                'descricao', hc.descricao
+              )
+            ) FILTER (WHERE hc.id IS NOT NULL),
+            '[]'::json
+          ) AS habilidades
+        FROM cargo c
+        LEFT JOIN senioridade se ON se.id = c.senioridade_id
+        LEFT JOIN setor st ON st.id = c.setor_id
+        LEFT JOIN habilidades_cargo hc ON hc.id_cargo = c.id
+        WHERE c.id_cliente = $1
+        GROUP BY c.id, se.id, st.id
+        ORDER BY c.nome_cargo;
+      `;
+
+      const cargosResult = await client.query(cargosQuery, [id_cliente]);
+      const cargos = cargosResult.rows.map(mapCargoDetalhado);
+
+      logger.info('Cargos detalhados buscados com sucesso', {
+        cliente_id: id_cliente,
+        quantidade: cargos.length
+      });
+
+      return ApiResponse.success(res, {
+        cliente_id: parseInt(id_cliente),
+        total_cargos: cargos.length,
+        cargos
+      }, 'Cargos detalhados buscados com sucesso');
+    } catch (error) {
+      logger.error('Erro ao buscar cargos detalhados por cliente', {
+        error: error.message,
         stack: error.stack,
         cliente_id: req.params.id_cliente
       });
@@ -153,6 +266,98 @@ class CargoController extends BaseController {
         stack: error.stack,
         cliente_id: req.params.id_cliente,
         nome_cargo: req.body.nome_cargo
+      });
+      return ApiResponse.internalError(res);
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Buscar cargo detalhado
+   * GET /api/cargos/:id_cargo/detalhado
+   */
+  async buscarCargoDetalhado(req, res) {
+    const client = await pool.connect();
+
+    try {
+      const { id_cargo } = req.params;
+
+      logger.info('Iniciando busca de cargo detalhado', {
+        id_cargo
+      });
+
+      if (!id_cargo || isNaN(id_cargo)) {
+        return ApiResponse.badRequest(res, {
+          error: 'INVALID_CARGO_ID',
+          message: 'ID do cargo é obrigatório e deve ser um número válido'
+        });
+      }
+
+      const cargoQuery = `
+        SELECT
+          c.id,
+          c.nome_cargo,
+          c.descricao,
+          c.created_at,
+          c.id_cliente,
+          CASE
+            WHEN se.id IS NULL THEN NULL
+            ELSE json_build_object(
+              'id', se.id,
+              'senioridade', se.senioridade
+            )
+          END AS senioridade,
+          CASE
+            WHEN st.id IS NULL THEN NULL
+            ELSE json_build_object(
+              'id', st.id,
+              'nome_setor', st.nome_setor
+            )
+          END AS setor,
+          COALESCE(
+            json_agg(
+              DISTINCT jsonb_build_object(
+                'id', hc.id,
+                'habilidade', hc.habilidade,
+                'descricao', hc.descricao
+              )
+            ) FILTER (WHERE hc.id IS NOT NULL),
+            '[]'::json
+          ) AS habilidades
+        FROM cargo c
+        LEFT JOIN senioridade se ON se.id = c.senioridade_id
+        LEFT JOIN setor st ON st.id = c.setor_id
+        LEFT JOIN habilidades_cargo hc ON hc.id_cargo = c.id
+        WHERE c.id = $1
+        GROUP BY c.id, se.id, st.id
+        LIMIT 1;
+      `;
+
+      const cargoResult = await client.query(cargoQuery, [id_cargo]);
+
+      if (cargoResult.rows.length === 0) {
+        return ApiResponse.notFound(res, {
+          error: 'CARGO_NOT_FOUND',
+          message: 'Cargo não encontrado'
+        });
+      }
+
+      const cargoDetalhado = mapCargoDetalhado(cargoResult.rows[0]);
+
+      logger.info('Cargo detalhado buscado com sucesso', {
+        id: id_cargo,
+        cliente_id: cargoDetalhado.id_cliente
+      });
+
+      return ApiResponse.success(res, {
+        cargo: cargoDetalhado
+      }, 'Cargo detalhado buscado com sucesso');
+    } catch (error) {
+      logger.error('Erro ao buscar cargo detalhado', {
+        error: error.message,
+        stack: error.stack,
+        id_cargo: req.params.id_cargo
       });
       return ApiResponse.internalError(res);
     } finally {
@@ -422,7 +627,7 @@ class CargoController extends BaseController {
         SELECT COUNT(*) as total_usuarios FROM usuarios
         WHERE cargo = $1
       `;
-      const usuariosResult = await client.query(usuariosQuery, [cargo.nome_cargo]);
+      const usuariosResult = await client.query(usuariosQuery, [cargo.id]);
       const totalUsuarios = parseInt(usuariosResult.rows[0].total_usuarios);
 
       logger.info('Cargo específico buscado com sucesso', {

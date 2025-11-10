@@ -36,6 +36,28 @@ const validateAtualizarAtividade = [
 ];
 
 /**
+ * Validação para atualizar status da meta
+ */
+const validateAtualizarStatusMeta = [
+  body('status')
+    .notEmpty()
+    .withMessage('Status é obrigatório')
+    .isIn(['Em Progresso', 'Parado', 'Atrasado', 'Concluida'])
+    .withMessage('Status deve ser: Em Progresso, Parado, Atrasado ou Concluida'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      logger.warn('Erro de validação na atualização de status da meta', {
+        errors: errors.array(),
+        body: req.body
+      });
+      return validateRequest(req, res, next);
+    }
+    next();
+  }
+];
+
+/**
  * Validação para criar meta PDI
  */
 const validateCriarMeta = [
@@ -181,6 +203,17 @@ router.put('/atividade/:id_meta_pdi/:id_atividade',
   validateAtualizarAtividade,
   validateRequest,
   metasController.atualizarStatusAtividade
+);
+
+/**
+ * @route PATCH /api/metas/:id/status
+ * @desc Atualizar apenas o status de uma meta PDI
+ * @access Private
+ */
+router.patch('/:id/status',
+  validateAtualizarStatusMeta,
+  validateRequest,
+  metasController.atualizarStatusMeta
 );
 
 module.exports = router;

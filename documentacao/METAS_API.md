@@ -329,6 +329,85 @@ Authorization: Bearer <token>
 
 ---
 
+### 3.1 Atualizar Status da Meta PDI
+
+Atualiza apenas o status de uma meta existente.
+
+**Endpoint:** `PATCH /api/metas/:id/status`
+
+**Headers:**
+```
+Content-Type: application/json
+Authorization: Bearer <token>
+```
+
+**Parâmetros da URL:**
+- `id` (integer): ID da meta
+
+**Body:**
+```json
+{
+  "status": "Em Progresso"
+}
+```
+
+**Status válidos:**
+- `Em Progresso`
+- `Parado`
+- `Atrasado`
+- `Concluida`
+
+**Resposta de Sucesso (200):**
+```json
+{
+  "success": true,
+  "message": "Status da meta atualizado com sucesso",
+  "data": {
+    "meta": {
+      "id": 1,
+      "titulo": "Desenvolvimento em JavaScript Avançado",
+      "prazo": "2024-12-31",
+      "status": "Em Progresso",
+      "resultado_3_meses": "Esperamos ter completado 50% das atividades planejadas",
+      "resultado_6_meses": "Meta totalmente concluída com sucesso e aplicação prática",
+      "feedback_gestor": "Meta importante para o desenvolvimento da equipe de tecnologia",
+      "id_usuario": 1,
+      "created_at": "2024-01-15T10:30:00.000Z"
+    }
+  }
+}
+```
+
+**Resposta de Erro (400):**
+```json
+{
+  "success": false,
+  "error": "INVALID_STATUS",
+  "message": "Status inválido. Valores aceitos: Em Progresso, Parado, Atrasado, Concluida"
+}
+```
+
+**Resposta de Erro (404):**
+```json
+{
+  "success": false,
+  "error": "META_NOT_FOUND",
+  "message": "Meta não encontrada"
+}
+```
+
+**Códigos de Erro:**
+
+| Código | Descrição |
+|--------|-----------|
+| `INVALID_META_ID` | ID da meta inválido ou não fornecido |
+| `MISSING_STATUS` | Status não fornecido |
+| `INVALID_STATUS` | Status inválido |
+| `META_NOT_FOUND` | Meta PDI não encontrada |
+| `INTERNAL_ERROR` | Erro interno do servidor |
+
+---
+
 ### 4. Buscar Metas por Usuário
 
 Busca todas as metas de um usuário específico com informações detalhadas e cálculos de progresso.

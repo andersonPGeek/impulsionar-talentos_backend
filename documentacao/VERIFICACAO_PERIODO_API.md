@@ -289,3 +289,5 @@ const verificarPeriodoArvore = async (idUsuario) => {
 5. **Performance**: As consultas são otimizadas para buscar apenas os dados necessários
 
 
+
+

@@ -819,6 +819,95 @@ class MetasController extends BaseController {
   }
 
   /**
+   * Atualizar apenas o status de uma meta PDI
+   * PATCH /api/metas/:id/status
+   */
+  async atualizarStatusMeta(req, res) {
+    const client = await pool.connect();
+
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      logger.info('Iniciando atualização de status da meta PDI', {
+        meta_id: id,
+        status
+      });
+
+      if (!id || isNaN(id)) {
+        return res.status(400).json({
+          success: false,
+          error: 'INVALID_META_ID',
+          message: 'ID da meta é obrigatório e deve ser um número válido'
+        });
+      }
+
+      if (!status) {
+        return res.status(400).json({
+          success: false,
+          error: 'MISSING_STATUS',
+          message: 'Status é obrigatório'
+        });
+      }
+
+      const statusValidos = ['Em Progresso', 'Parado', 'Atrasado', 'Concluida'];
+      if (!statusValidos.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          error: 'INVALID_STATUS',
+          message: 'Status inválido. Valores aceitos: Em Progresso, Parado, Atrasado, Concluida'
+        });
+      }
+
+      const updateQuery = `
+        UPDATE metas_pdi
+        SET status = $1
+        WHERE id = $2
+        RETURNING id, titulo, prazo, status, resultado_3_meses, resultado_6_meses, feedback_gestor, id_usuario, created_at
+      `;
+
+      const updateResult = await client.query(updateQuery, [status, id]);
+
+      if (updateResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'META_NOT_FOUND',
+          message: 'Meta não encontrada'
+        });
+      }
+
+      const metaAtualizada = updateResult.rows[0];
+
+      logger.info('Status da meta PDI atualizado com sucesso', {
+        meta_id: id,
+        status
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Status da meta atualizado com sucesso',
+        data: {
+          meta: metaAtualizada
+        }
+      });
+    } catch (error) {
+      logger.error('Erro ao atualizar status da meta PDI', {
+        error: error.message,
+        stack: error.stack,
+        meta_id: req.params.id
+      });
+
+      return res.status(500).json({
+        success: false,
+        error: 'INTERNAL_ERROR',
+        message: 'Erro interno do servidor'
+      });
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
    * Buscar metas por usuário
    * GET /api/metas/usuario/:id_usuario
    */

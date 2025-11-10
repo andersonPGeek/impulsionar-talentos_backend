@@ -276,6 +276,168 @@ Authorization: Bearer <token>
 
 ---
 
+### 6. Buscar Cargos Detalhados por Cliente
+
+Retorna todos os cargos de um cliente com informações completas de senioridade, setor e habilidades vinculadas.
+
+**Endpoint:** `GET /api/cargos/cliente/:id_cliente/detalhado`
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**Parâmetros da URL:**
+- `id_cliente` (integer): ID do cliente
+
+**Resposta de Sucesso (200):**
+```json
+{
+  "success": true,
+  "message": "Cargos detalhados buscados com sucesso",
+  "data": {
+    "cliente_id": 1,
+    "total_cargos": 2,
+    "cargos": [
+      {
+        "id": 10,
+        "nome_cargo": "Desenvolvedor Full Stack",
+        "descricao": "Responsável por aplicações web",
+        "created_at": "2024-01-15T10:30:00.000Z",
+        "id_cliente": 1,
+        "senioridade": {
+          "id": 3,
+          "senioridade": "Sênior"
+        },
+        "setor": {
+          "id": 5,
+          "nome_setor": "Tecnologia"
+        },
+        "habilidades": [
+          {
+            "id": 21,
+            "habilidade": "Node.js",
+            "descricao": "Experiência com APIs REST"
+          },
+          {
+            "id": 22,
+            "habilidade": "React",
+            "descricao": "Construção de SPAs"
+          }
+        ]
+      }
+    ]
+  },
+  "timestamp": "2024-01-15T10:35:00.000Z"
+}
+```
+
+**Resposta quando não há cargos (200):**
+```json
+{
+  "success": true,
+  "message": "Cargos detalhados buscados com sucesso",
+  "data": {
+    "cliente_id": 1,
+    "total_cargos": 0,
+    "cargos": []
+  },
+  "timestamp": "2024-01-15T10:35:00.000Z"
+}
+```
+
+**Resposta de Erro (400):**
+```json
+{
+  "success": false,
+  "message": {
+    "error": "INVALID_CLIENT_ID",
+    "message": "ID do cliente é obrigatório e deve ser um número válido"
+  },
+  "timestamp": "2024-01-15T10:35:00.000Z"
+}
+```
+
+---
+
+### 7. Buscar Cargo Detalhado
+
+Retorna um cargo específico com senioridade, setor e lista de habilidades.
+
+**Endpoint:** `GET /api/cargos/:id_cargo/detalhado`
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**Parâmetros da URL:**
+- `id_cargo` (integer): ID do cargo
+
+**Resposta de Sucesso (200):**
+```json
+{
+  "success": true,
+  "message": "Cargo detalhado buscado com sucesso",
+  "data": {
+    "cargo": {
+      "id": 10,
+      "nome_cargo": "Desenvolvedor Full Stack",
+      "descricao": "Responsável por aplicações web",
+      "created_at": "2024-01-15T10:30:00.000Z",
+      "id_cliente": 1,
+      "senioridade": {
+        "id": 3,
+        "senioridade": "Sênior"
+      },
+      "setor": {
+        "id": 5,
+        "nome_setor": "Tecnologia"
+      },
+      "habilidades": [
+        {
+          "id": 21,
+          "habilidade": "Node.js",
+          "descricao": "Experiência com APIs REST"
+        },
+        {
+          "id": 22,
+          "habilidade": "React",
+          "descricao": "Construção de SPAs"
+        }
+      ]
+    }
+  },
+  "timestamp": "2024-01-15T10:35:00.000Z"
+}
+```
+
+**Resposta de Erro (400):**
+```json
+{
+  "success": false,
+  "message": {
+    "error": "INVALID_CARGO_ID",
+    "message": "ID do cargo é obrigatório e deve ser um número válido"
+  },
+  "timestamp": "2024-01-15T10:35:00.000Z"
+}
+```
+
+**Resposta de Erro (404):**
+```json
+{
+  "success": false,
+  "message": {
+    "error": "CARGO_NOT_FOUND",
+    "message": "Cargo não encontrado"
+  },
+  "timestamp": "2024-01-15T10:35:00.000Z"
+}
+```
+
+---
+
 ## Códigos de Erro
 
 | Código | Descrição |
