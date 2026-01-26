@@ -55,7 +55,20 @@ class HabilidadesUsuariosController extends BaseController {
           hu.created_at,
           hc.id as id_habilidade,
           hc.habilidade as titulo,
-          hc.descricao
+          hc.descricao,
+          COALESCE(
+            json_agg(
+              DISTINCT jsonb_build_object(
+                'id', m.id,
+                'titulo', m.titulo,
+                'prazo', m.prazo,
+                'status', m.status,
+                'resultado_3_meses', m.resultado_3_meses,
+                'resultado_6_meses', m.resultado_6_meses
+              )
+            ) FILTER (WHERE m.id IS NOT NULL),
+            '[]'::json
+          ) as metas_associadas
         FROM cargo c
         INNER JOIN habilidades_cargo hc ON c.id = hc.id_cargo
         INNER JOIN usuarios u on u.cargo = c.id
@@ -66,7 +79,10 @@ class HabilidadesUsuariosController extends BaseController {
           ORDER BY hu2.created_at DESC
           LIMIT 1
         ) hu ON true
+        LEFT JOIN meta_habilidades mh ON hc.id = mh.id_habilidade AND mh.id_user = u.id
+        LEFT JOIN metas_pdi m ON mh.id_meta = m.id
         WHERE u.id = $1
+        GROUP BY hu.id, hu.nivel, hu.created_at, hc.id, hc.habilidade, hc.descricao
         ORDER BY hc.habilidade
       `;
       
@@ -85,7 +101,8 @@ class HabilidadesUsuariosController extends BaseController {
         titulo: row.titulo,
         descricao: row.descricao,
         nivel: row.nivel,
-        created_at: row.created_at
+        created_at: row.created_at,
+        metas_associadas: row.metas_associadas || []
       }));
 
       return ApiResponse.success(res, {

@@ -1,4 +1,5 @@
 const express = require('express');
+const http = require('http');
 const cors = require('cors');
 const { testConnection } = require('./utils/supabase');
 const Logger = require('./utils/logger');
@@ -8,6 +9,7 @@ const config = require('./config/environment');
 const apiRoutes = require('./routes/index');
 
 const app = express();
+const server = http.createServer(app);
 
 // Configuração do CORS
 const corsOptions = {
@@ -83,13 +85,18 @@ const initializeApp = async () => {
 
       console.log('✅ Conexão com banco estabelecida com sucesso');
 
-      // Iniciar servidor
-      app.listen(config.port, () => {
+      // Inicializar WebSocket server
+      const { setupWebSocketServer } = require('./routes/ia.routes');
+      setupWebSocketServer(server);
+
+      // Iniciar servidor HTTP (que também suporta WebSocket)
+      server.listen(config.port, () => {
         console.log(`🚀 Servidor rodando na porta ${config.port}`);
         console.log(`🌍 Ambiente: ${config.nodeEnv}`);
         console.log(`📊 Health check: http://localhost:${config.port}/health`);
         console.log(`🔗 API base: http://localhost:${config.port}/api`);
         console.log(`🔐 Auth endpoints: http://localhost:${config.port}/api/auth`);
+        console.log(`🔊 WebSocket endpoints: ws://localhost:${config.port}/ws/ia/voz/*`);
         
         if (config.isProduction) {
           console.log(`🔒 Modo produção ativo`);
@@ -121,4 +128,7 @@ const initializeApp = async () => {
 
 initializeApp();
 
-module.exports = app; 
+// Exportar app e server
+module.exports = { app, server };
+// Manter compatibilidade: exportar app como default também
+module.exports.default = app; 

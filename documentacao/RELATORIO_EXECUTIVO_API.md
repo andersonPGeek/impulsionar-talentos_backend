@@ -1,6 +1,6 @@
 # API de Relatórios Executivos
 
-Este documento descreve as 29 APIs de relatórios executivos criadas para fornecer métricas e KPIs abrangentes sobre o desenvolvimento de talentos na organização.
+Este documento descreve as APIs de relatórios executivos criadas para fornecer métricas e KPIs abrangentes sobre o desenvolvimento de talentos na organização.
 
 ## Base URL
 ```
@@ -13,13 +13,211 @@ Todas as rotas requerem autenticação via JWT token no header:
 Authorization: Bearer <seu-token-jwt>
 ```
 
-## Parâmetros
-Todas as APIs recebem apenas um parâmetro obrigatório:
+## Parâmetros Gerais
+Todas as APIs recebem:
 - `id_cliente` (path parameter): ID do cliente para filtrar os dados
+- `periodo` (query parameter - OPCIONAL): Filtro de período ('ultimo_mes', 'ultimo_trimestre', 'ultimo_semestre', 'ultimo_ano')
 
 ---
 
-## 📊 APIs de Visão Geral (5 APIs)
+## 📊 APIs de Relatório Completo (3 NOVAS APIs)
+
+### 1. Relatório Executivo Completo (JSON)
+**GET** `/:id_cliente?periodo=PERIODO`
+
+Retorna todos os dados agregados em um único objeto JSON (visão geral, árvore da vida, SWOT, PDI, portfólio, reconhecimento, tendência, bem-estar emocional).
+
+**Query Parameters:**
+- `periodo` (opcional): 'ultimo_mes', 'ultimo_trimestre', 'ultimo_semestre', 'ultimo_ano' (padrão: histórico completo)
+
+**Resposta:**
+```json
+{
+  "success": true,
+  "message": "Relatório executivo completo buscado com sucesso",
+  "data": {
+    "visao_geral": {
+      "indice_engajamento_geral": 7.5,
+      "taxa_evolucao_desenvolvimento": 75.5,
+      "nivel_medio_reconhecimento": 3.2,
+      "indice_satisfacao_interna": 85.3,
+      "maturidade_carreira": 2.1
+    },
+    "arvore_da_vida": {
+      "indice_plenitude": 7.8,
+      "indice_vitalidade": 7.2,
+      "indice_proposito_contribuicao": 8.1,
+      "indice_profissional_global": 7.5
+    },
+    "analise_swot": {
+      "forcas_vs_fraquezas_ratio": 1.8,
+      "oportunidades_aproveitadas": 65.5,
+      "ameacas_monitoradas": 45.2
+    },
+    "pdi": {
+      "progresso_medio_pdi": 72.3,
+      "taxa_metas_progresso": 68.5,
+      "aderencia_prazo": 82.1,
+      "engajamento_mentoria": 78.9
+    },
+    "portfolio": {
+      "taxa_atualizacao_portfolio": 75.4,
+      "indice_feedbacks_positivos": 88.2,
+      "conquistas_validadas": 65.3,
+      "acoes_melhoria": 2.5
+    },
+    "reconhecimento": {
+      "reconhecimentos_por_colaborador": 3.2,
+      "top_skills_reconhecidas": [
+        {
+          "skill": "Liderança",
+          "frequencia": 45
+        }
+      ],
+      "tempo_medio_entre_reconhecimentos": "15.5",
+      "distribuicao_reconhecimento_por_area": [
+        {
+          "departamento": "TI",
+          "total_reconhecimentos": 120,
+          "colaboradores_departamento": 30,
+          "percentual": 35.5
+        }
+      ]
+    },
+    "bem_estar_emocional": {
+      "checkin_emocional": {
+        "total_checkins": 450,
+        "media_nota_bem_estar": 3.75,
+        "nota_1": 25,
+        "nota_2": 50,
+        "nota_3": 100,
+        "nota_4": 150,
+        "nota_5": 125,
+        "categorias_motivo": [
+          {
+            "categoria": "Trabalho",
+            "quantidade": 180
+          }
+        ]
+      },
+      "acoes_bem_estar": {
+        "total_acoes": 200,
+        "acoes_pendentes": 40,
+        "acoes_em_progresso": 50,
+        "acoes_concluidas": 100,
+        "acoes_canceladas": 10,
+        "percentual_conclusao": 50.0,
+        "acoes_por_tipo": [
+          {
+            "tipo_acao": "Exercício",
+            "quantidade": 80
+          }
+        ],
+        "acoes_por_prioridade": [
+          {
+            "prioridade": "Alta",
+            "quantidade": 100
+          }
+        ]
+      }
+    },
+    "tendencia": {
+      "indice_reconhecimento_reciproco": 42.5,
+      "indice_bem_estar_organizacional": 7.2,
+      "tempo_medio_evolucao_meta": 45
+    },
+    "data_geracao": "11/01/2026 14:35:42",
+    "periodo_filtro": "ultimo_mes",
+    "id_cliente": 1
+  }
+}
+```
+
+**Exemplos de URL:**
+```
+GET /api/relatorio-executivo/1
+GET /api/relatorio-executivo/1?periodo=ultimo_mes
+GET /api/relatorio-executivo/1?periodo=ultimo_trimestre
+GET /api/relatorio-executivo/relatorio-completo/1?periodo=ultimo_ano
+```
+
+---
+
+### 2. Gerar PDF do Relatório Executivo
+**GET** `/gerar-pdf/:id_cliente?periodo=PERIODO`
+
+Gera um PDF formatado com layout bonito contendo todos os dados do relatório executivo.
+
+**Query Parameters:**
+- `periodo` (opcional): 'ultimo_mes', 'ultimo_trimestre', 'ultimo_semestre', 'ultimo_ano' (padrão: histórico completo)
+
+**Response Header:**
+```
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="relatorio-executivo-1-1705073742000.pdf"
+```
+
+**Response Body:**
+- Binary PDF file
+
+**Exemplos de URL:**
+```
+GET /api/relatorio-executivo/gerar-pdf/1
+GET /api/relatorio-executivo/gerar-pdf/1?periodo=ultimo_mes
+GET /api/relatorio-executivo/gerar-pdf/1?periodo=ultimo_trimestre
+GET /api/relatorio-executivo/gerar-pdf/1?periodo=ultimo_semestre
+GET /api/relatorio-executivo/gerar-pdf/1?periodo=ultimo_ano
+```
+
+**Features do PDF:**
+- Layout responsivo em A4
+- Margens configuradas (20px)
+- Fundo colorido com CSS
+- Divisão em seções (Visão Geral, Árvore da Vida, SWOT, PDI, Portfólio, Reconhecimento, Bem-Estar Emocional, KPIs de Tendência)
+- Cards de métricas com valores destacados
+- Tabelas com distribuições
+- Rodapé com data de geração
+
+---
+
+### 3. Gerar Excel do Relatório Executivo
+**GET** `/gerar-excel/:id_cliente?periodo=PERIODO`
+
+Gera um Excel com múltiplas abas (sheets) contendo todos os dados do relatório executivo de forma estruturada.
+
+**Query Parameters:**
+- `periodo` (opcional): 'ultimo_mes', 'ultimo_trimestre', 'ultimo_semestre', 'ultimo_ano' (padrão: histórico completo)
+
+**Response Header:**
+```
+Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+Content-Disposition: attachment; filename="relatorio-executivo-1-1705073742000.xlsx"
+```
+
+**Response Body:**
+- Binary XLSX file
+
+**Exemplos de URL:**
+```
+GET /api/relatorio-executivo/gerar-excel/1
+GET /api/relatorio-executivo/gerar-excel/1?periodo=ultimo_mes
+GET /api/relatorio-executivo/gerar-excel/1?periodo=ultimo_trimestre
+GET /api/relatorio-executivo/gerar-excel/1?periodo=ultimo_semestre
+GET /api/relatorio-executivo/gerar-excel/1?periodo=ultimo_ano
+```
+
+**Abas do Excel:**
+1. **Resumo** - Métricas principais de todos os pilares
+2. **Árvore da Vida** - Detalhes de cada pilar
+3. **Bem-Estar Distribuição** - Distribuição por nota e categoria
+4. **Ações de Bem-Estar** - Distribuição de ações por status, tipo e prioridade
+5. **SWOT** - Métricas SWOT
+6. **PDI** - Métricas de PDI
+7. **Portfólio** - Métricas de portfólio
+8. **Top Skills** - Top 10 skills reconhecidas
+9. **Tendência** - KPIs de tendência
+
+---
 
 ### 1. Índice de Engajamento Geral (IEG)
 **GET** `/indice-engajamento-geral/:id_cliente`
@@ -624,22 +822,57 @@ Dias até conclusão de metas
 
 ## 🔧 Exemplos de Uso
 
-### cURL
+### cURL - Relatório JSON
 ```bash
-# Obter índice de engajamento geral
+# Obter relatório completo - histórico inteiro
 curl -X GET \
-  http://localhost:3000/api/relatorio-executivo/indice-engajamento-geral/1 \
+  http://localhost:3000/api/relatorio-executivo/1 \
   -H "Authorization: Bearer SEU_TOKEN_JWT"
 
-# Obter top skills reconhecidas
+# Obter relatório do último mês
 curl -X GET \
-  http://localhost:3000/api/relatorio-executivo/top-skills-reconhecidas/1 \
+  http://localhost:3000/api/relatorio-executivo/1?periodo=ultimo_mes \
+  -H "Authorization: Bearer SEU_TOKEN_JWT"
+
+# Obter relatório do último trimestre
+curl -X GET \
+  http://localhost:3000/api/relatorio-executivo/1?periodo=ultimo_trimestre \
   -H "Authorization: Bearer SEU_TOKEN_JWT"
 ```
 
-### JavaScript (Fetch)
+### cURL - PDF
+```bash
+# Gerar PDF - histórico inteiro
+curl -X GET \
+  http://localhost:3000/api/relatorio-executivo/gerar-pdf/1 \
+  -H "Authorization: Bearer SEU_TOKEN_JWT" \
+  -o relatorio-cliente-1.pdf
+
+# Gerar PDF do último semestre
+curl -X GET \
+  http://localhost:3000/api/relatorio-executivo/gerar-pdf/1?periodo=ultimo_semestre \
+  -H "Authorization: Bearer SEU_TOKEN_JWT" \
+  -o relatorio-cliente-1.pdf
+```
+
+### cURL - Excel
+```bash
+# Gerar Excel - histórico inteiro
+curl -X GET \
+  http://localhost:3000/api/relatorio-executivo/gerar-excel/1 \
+  -H "Authorization: Bearer SEU_TOKEN_JWT" \
+  -o relatorio-cliente-1.xlsx
+
+# Gerar Excel do último ano
+curl -X GET \
+  http://localhost:3000/api/relatorio-executivo/gerar-excel/1?periodo=ultimo_ano \
+  -H "Authorization: Bearer SEU_TOKEN_JWT" \
+  -o relatorio-cliente-1.xlsx
+```
+
+### JavaScript (Fetch) - JSON
 ```javascript
-const response = await fetch('/api/relatorio-executivo/indice-engajamento-geral/1', {
+const response = await fetch('/api/relatorio-executivo/1?periodo=ultimo_mes', {
   headers: {
     'Authorization': 'Bearer SEU_TOKEN_JWT'
   }
@@ -648,6 +881,83 @@ const response = await fetch('/api/relatorio-executivo/indice-engajamento-geral/
 const data = await response.json();
 console.log(data);
 ```
+
+### JavaScript (Fetch) - PDF
+```javascript
+const response = await fetch('/api/relatorio-executivo/gerar-pdf/1?periodo=ultimo_mes', {
+  headers: {
+    'Authorization': 'Bearer SEU_TOKEN_JWT'
+  }
+});
+
+const blob = await response.blob();
+const url = window.URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url;
+a.download = 'relatorio-executivo.pdf';
+a.click();
+window.URL.revokeObjectURL(url);
+```
+
+### JavaScript (Fetch) - Excel
+```javascript
+const response = await fetch('/api/relatorio-executivo/gerar-excel/1?periodo=ultimo_mes', {
+  headers: {
+    'Authorization': 'Bearer SEU_TOKEN_JWT'
+  }
+});
+
+const blob = await response.blob();
+const url = window.URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url;
+a.download = 'relatorio-executivo.xlsx';
+a.click();
+window.URL.revokeObjectURL(url);
+```
+
+### Python - JSON
+```python
+import requests
+
+headers = {'Authorization': 'Bearer SEU_TOKEN_JWT'}
+response = requests.get(
+    'http://localhost:3000/api/relatorio-executivo/1?periodo=ultimo_mes',
+    headers=headers
+)
+
+data = response.json()
+print(data)
+```
+
+### Python - PDF
+```python
+import requests
+
+headers = {'Authorization': 'Bearer SEU_TOKEN_JWT'}
+response = requests.get(
+    'http://localhost:3000/api/relatorio-executivo/gerar-pdf/1?periodo=ultimo_mes',
+    headers=headers
+)
+
+with open('relatorio.pdf', 'wb') as f:
+    f.write(response.content)
+```
+
+### Python - Excel
+```python
+import requests
+
+headers = {'Authorization': 'Bearer SEU_TOKEN_JWT'}
+response = requests.get(
+    'http://localhost:3000/api/relatorio-executivo/gerar-excel/1?periodo=ultimo_mes',
+    headers=headers
+)
+
+with open('relatorio.xlsx', 'wb') as f:
+    f.write(response.content)
+```
+
 
 
 

@@ -20,14 +20,16 @@ class MetasController extends BaseController {
         id_usuarios,
         resultado_3_meses,
         resultado_6_meses,
-        observacao_gestor
+        observacao_gestor,
+        id_habilidades
       } = req.body;
 
       logger.info('Iniciando criação de meta PDI', {
         id_usuario,
         titulo_da_meta,
         atividades_count: atividades?.length || 0,
-        id_usuarios_count: id_usuarios?.length || 0
+        id_usuarios_count: id_usuarios?.length || 0,
+        id_habilidades_count: id_habilidades?.length || 0
       });
 
       // Validações básicas
@@ -86,6 +88,32 @@ class MetasController extends BaseController {
           success: false,
           error: 'MISSING_USUARIOS',
           message: 'Array de usuários envolvidos é obrigatório e deve conter pelo menos um usuário'
+        });
+      }
+
+      // Validar habilidades (OBRIGATÓRIO - deve ter pelo menos uma)
+      if (!id_habilidades || !Array.isArray(id_habilidades) || id_habilidades.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'MISSING_HABILIDADES',
+          message: 'Array de habilidades é obrigatório e deve conter pelo menos uma habilidade a desenvolver'
+        });
+      }
+
+      // Validar se as habilidades existem
+      const habilidadesCheckQuery = `
+        SELECT id FROM habilidades_cargo WHERE id = ANY($1)
+      `;
+      const habilidadesCheckResult = await client.query(habilidadesCheckQuery, [id_habilidades]);
+      
+      if (habilidadesCheckResult.rows.length !== id_habilidades.length) {
+        const habilidadesEncontradas = habilidadesCheckResult.rows.map(h => h.id);
+        const habilidadesInvalidas = id_habilidades.filter(h => !habilidadesEncontradas.includes(h));
+        return res.status(400).json({
+          success: false,
+          error: 'INVALID_HABILIDADES',
+          message: 'Uma ou mais habilidades não existem',
+          habilidades_invalidas: habilidadesInvalidas
         });
       }
 
@@ -152,6 +180,31 @@ class MetasController extends BaseController {
         usuarios_count: id_usuarios.length 
       });
 
+      // 4. Inserir habilidades associadas à meta na tabela meta_habilidades (OBRIGATÓRIO)
+      const metaHabilidadesQuery = `
+        INSERT INTO meta_habilidades (
+          id_meta, id_habilidade, id_user
+        ) VALUES ($1, $2, $3)
+      `;
+
+      for (const idHabilidade of id_habilidades) {
+        try {
+          await client.query(metaHabilidadesQuery, [metaId, idHabilidade, id_usuario]);
+        } catch (habilidadeError) {
+          logger.error('Erro ao inserir habilidade para meta', {
+            meta_id: metaId,
+            habilidade_id: idHabilidade,
+            error: habilidadeError.message
+          });
+          throw habilidadeError; // Re-throw para fazer rollback da transação
+        }
+      }
+
+      logger.info('Habilidades associadas à meta com sucesso', { 
+        meta_id: metaId, 
+        habilidades_count: id_habilidades.length 
+      });
+
       await client.query('COMMIT');
 
       // Buscar a meta criada com todas as informações
@@ -167,10 +220,22 @@ class MetasController extends BaseController {
           m.id_usuario,
           m.created_at,
           array_agg(DISTINCT a.titulo_atividade) as atividades,
-          array_agg(DISTINCT p.id_usuario) as usuarios_envolvidos
+          array_agg(DISTINCT p.id_usuario) as usuarios_envolvidos,
+          COALESCE(
+            json_agg(
+              DISTINCT jsonb_build_object(
+                'id', hc.id,
+                'habilidade', hc.habilidade,
+                'descricao', hc.descricao
+              )
+            ) FILTER (WHERE hc.id IS NOT NULL),
+            '[]'::json
+          ) as habilidades_desenvolvidas
         FROM metas_pdi m
         LEFT JOIN atividades_pdi a ON m.id = a.id_meta_pdi
         LEFT JOIN pessoas_envolvidas_pdi p ON m.id = p.id_meta_pdi
+        LEFT JOIN meta_habilidades mh ON m.id = mh.id_meta
+        LEFT JOIN habilidades_cargo hc ON mh.id_habilidade = hc.id
         WHERE m.id = $1
         GROUP BY m.id, m.titulo, m.prazo, m.status, m.resultado_3_meses, 
                  m.resultado_6_meses, m.feedback_gestor, m.id_usuario, m.created_at
@@ -183,7 +248,8 @@ class MetasController extends BaseController {
         meta_id: metaId,
         titulo: titulo_da_meta,
         atividades_count: atividades.length,
-        usuarios_count: id_usuarios.length
+        usuarios_count: id_usuarios.length,
+        habilidades_count: id_habilidades.length
       });
 
       return res.status(201).json({
@@ -944,13 +1010,29 @@ class MetasController extends BaseController {
           a.id as atividade_id,
           a.titulo_atividade,
           a.status_atividade,
+          p.id as pessoa_envolvida_record_id,
           p.id_usuario as pessoa_envolvida_id,
-          u.nome as pessoa_envolvida_nome
+          u.nome as pessoa_envolvida_nome,
+          COALESCE(
+            json_agg(
+              DISTINCT jsonb_build_object(
+                'id', hc.id,
+                'habilidade', hc.habilidade,
+                'descricao', hc.descricao
+              )
+            ) FILTER (WHERE hc.id IS NOT NULL),
+            '[]'::json
+          ) as habilidades_desenvolvidas
         FROM metas_pdi m
         LEFT JOIN atividades_pdi a ON m.id = a.id_meta_pdi
         LEFT JOIN pessoas_envolvidas_pdi p ON m.id = p.id_meta_pdi
         LEFT JOIN usuarios u ON p.id_usuario = u.id
+        LEFT JOIN meta_habilidades mh ON m.id = mh.id_meta
+        LEFT JOIN habilidades_cargo hc ON mh.id_habilidade = hc.id
         WHERE m.id_usuario = $1
+        GROUP BY m.id, m.titulo, m.prazo, m.status, m.resultado_3_meses, 
+                 m.resultado_6_meses, m.feedback_gestor, m.created_at, a.id, 
+                 a.titulo_atividade, a.status_atividade, p.id, p.id_usuario, u.nome
         ORDER BY m.created_at DESC, a.id, p.id
       `;
 
@@ -990,6 +1072,7 @@ class MetasController extends BaseController {
             resultado_6_meses: row.resultado_6_meses,
             feedback_gestor: row.feedback_gestor,
             created_at: row.meta_created_at,
+            habilidades_desenvolvidas: row.habilidades_desenvolvidas || [],
             atividades: new Map(),
             pessoas_envolvidas: new Map(),
             atividades_concluidas: 0,
@@ -1083,6 +1166,71 @@ class MetasController extends BaseController {
         error: error.message, 
         stack: error.stack,
         usuario_id: req.params.id_usuario
+      });
+      return res.status(500).json({
+        success: false,
+        error: 'INTERNAL_ERROR',
+        message: 'Erro interno do servidor'
+      });
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Listar habilidades disponíveis para um cargo
+   * GET /api/metas/habilidades-cargo/:id_cargo
+   */
+  async buscarHabilidadesPorCargo(req, res) {
+    const client = await pool.connect();
+    
+    try {
+      const { id_cargo } = req.params;
+
+      if (!id_cargo) {
+        return res.status(400).json({
+          success: false,
+          error: 'MISSING_CARGO',
+          message: 'ID do cargo é obrigatório'
+        });
+      }
+
+      const query = `
+        SELECT 
+          id,
+          habilidade,
+          descricao,
+          id_cargo
+        FROM habilidades_cargo
+        WHERE id_cargo = $1
+        ORDER BY habilidade ASC
+      `;
+
+      const result = await client.query(query, [id_cargo]);
+
+      logger.info('Habilidades do cargo buscadas com sucesso', {
+        id_cargo,
+        quantidade: result.rows.length
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Habilidades do cargo buscadas com sucesso',
+        data: {
+          id_cargo: parseInt(id_cargo),
+          quantidade_habilidades: result.rows.length,
+          habilidades: result.rows.map(h => ({
+            id: h.id,
+            nome: h.habilidade,
+            descricao: h.descricao
+          }))
+        }
+      });
+
+    } catch (error) {
+      logger.error('Erro ao buscar habilidades do cargo', {
+        error: error.message,
+        id_cargo: req.params.id_cargo
       });
       return res.status(500).json({
         success: false,

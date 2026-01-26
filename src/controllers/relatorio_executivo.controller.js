@@ -3,6 +3,8 @@ const { pool } = require('../utils/supabase');
 const logger = require('../utils/logger');
 const puppeteer = require('puppeteer');
 const XLSX = require('xlsx');
+const PDFDocument = require('pdfkit');
+const { Readable } = require('stream');
 
 class RelatorioExecutivoController extends BaseController {
   constructor() {
@@ -52,6 +54,51 @@ class RelatorioExecutivoController extends BaseController {
     // APIs de geração de relatórios
     this.gerarPDFRelatorio = this.gerarPDFRelatorio.bind(this);
     this.gerarExcelRelatorio = this.gerarExcelRelatorio.bind(this);
+  }
+
+  /**
+   * Helper: Calcular datas de filtro baseado no período
+   * @param {string} periodo - 'ultimo_mes', 'ultimo_trimestre', 'ultimo_semestre', 'ultimo_ano'
+   * @returns {object} - { dataInicio, dataFim }
+   */
+  calcularFiltroDataPeriodo(periodo) {
+    const hoje = new Date();
+    let dataInicio;
+
+    switch (periodo) {
+      case 'ultimo_mes':
+        dataInicio = new Date(hoje.getFullYear(), hoje.getMonth() - 1, hoje.getDate());
+        break;
+      case 'ultimo_trimestre':
+        dataInicio = new Date(hoje.getFullYear(), hoje.getMonth() - 3, hoje.getDate());
+        break;
+      case 'ultimo_semestre':
+        dataInicio = new Date(hoje.getFullYear(), hoje.getMonth() - 6, hoje.getDate());
+        break;
+      case 'ultimo_ano':
+        dataInicio = new Date(hoje.getFullYear() - 1, hoje.getMonth(), hoje.getDate());
+        break;
+      default:
+        return { dataInicio: null, dataFim: null }; // Sem filtro
+    }
+
+    return {
+      dataInicio: dataInicio.toISOString().split('T')[0],
+      dataFim: hoje.toISOString().split('T')[0]
+    };
+  }
+
+  /**
+   * Helper: Gerar cláusula SQL de filtro por data
+   * @param {string} nomoCampoData - Nome do campo de data na tabela
+   * @param {object} filtroData - { dataInicio, dataFim }
+   * @returns {string} - Cláusula WHERE adicional (vazia se sem filtro)
+   */
+  gerarClausulaSQLFiltroData(nomeTabela, nomoCampoData, filtroData) {
+    if (!filtroData.dataInicio || !filtroData.dataFim) {
+      return '';
+    }
+    return ` AND ${nomeTabela}.${nomoCampoData} BETWEEN '${filtroData.dataInicio}' AND '${filtroData.dataFim}'`;
   }
 
   // ========== APIs DE VISÃO GERAL ==========
@@ -1677,10 +1724,13 @@ class RelatorioExecutivoController extends BaseController {
   /**
    * Método auxiliar para coletar todos os dados do relatório
    */
-  async coletarTodosOsDados(id_cliente) {
+  async coletarTodosOsDados(id_cliente, periodo = null) {
     const client = await pool.connect();
     try {
-      logger.info('Coletando todos os dados para o relatório', { id_cliente });
+      logger.info('Coletando todos os dados para o relatório', { id_cliente, periodo });
+
+      // Calcular filtro de data se período foi especificado
+      const filtroData = this.calcularFiltroDataPeriodo(periodo);
 
       // Executar todas as APIs em paralelo para melhor performance
       const [
@@ -1690,15 +1740,17 @@ class RelatorioExecutivoController extends BaseController {
         dadosPDI,
         dadosPortfolio,
         dadosReconhecimento,
-        dadosTendencia
+        dadosTendencia,
+        dadosBemEstarEmocional
       ] = await Promise.all([
-        this.coletarDadosVisaoGeral(client, id_cliente),
-        this.coletarDadosArvoreDaVida(client, id_cliente),
-        this.coletarDadosAnaliseSwot(client, id_cliente),
-        this.coletarDadosPDI(client, id_cliente),
-        this.coletarDadosPortfolio(client, id_cliente),
-        this.coletarDadosReconhecimento(client, id_cliente),
-        this.coletarDadosTendencia(client, id_cliente)
+        this.coletarDadosVisaoGeral(client, id_cliente, filtroData),
+        this.coletarDadosArvoreDaVida(client, id_cliente, filtroData),
+        this.coletarDadosAnaliseSwot(client, id_cliente, filtroData),
+        this.coletarDadosPDI(client, id_cliente, filtroData),
+        this.coletarDadosPortfolio(client, id_cliente, filtroData),
+        this.coletarDadosReconhecimento(client, id_cliente, filtroData),
+        this.coletarDadosTendencia(client, id_cliente, filtroData),
+        this.coletarDadosBemEstarEmocional(client, id_cliente, filtroData)
       ]);
 
       return {
@@ -1709,7 +1761,9 @@ class RelatorioExecutivoController extends BaseController {
         portfolio: dadosPortfolio,
         reconhecimento: dadosReconhecimento,
         tendencia: dadosTendencia,
+        bem_estar_emocional: dadosBemEstarEmocional,
         data_geracao: new Date().toLocaleString('pt-BR'),
+        periodo_filtro: periodo || 'completo',
         id_cliente: id_cliente
       };
 
@@ -1724,7 +1778,12 @@ class RelatorioExecutivoController extends BaseController {
   /**
    * Coletar dados de visão geral
    */
-  async coletarDadosVisaoGeral(client, id_cliente) {
+  async coletarDadosVisaoGeral(client, id_cliente, filtroData = {}) {
+    const clausulaFiltroArvoreDaVida = this.gerarClausulaSQLFiltroData('adv', 'created_at', filtroData);
+    const clausulaFiltroMetas = this.gerarClausulaSQLFiltroData('ap', 'created_at', filtroData);
+    const clausulaFiltroReconhecimento = this.gerarClausulaSQLFiltroData('r', 'created_at', filtroData);
+    const clausulaFiltroFeedbacks = this.gerarClausulaSQLFiltroData('fp', 'created_at', filtroData);
+    
     const queries = [
       // IEG
       `SELECT 
@@ -1743,7 +1802,7 @@ class RelatorioExecutivoController extends BaseController {
         AVG(contribuicao_social) as media_contribuicao
       FROM arvore_da_vida adv
       INNER JOIN usuarios u ON adv.id_usuario = u.id
-      WHERE u.id_cliente = $1`,
+      WHERE u.id_cliente = $1 ${clausulaFiltroArvoreDaVida}`,
       
       // TED
       `SELECT 
@@ -1752,7 +1811,7 @@ class RelatorioExecutivoController extends BaseController {
       FROM atividades_pdi ap
       INNER JOIN metas_pdi mp ON ap.id_meta_pdi = mp.id
       INNER JOIN usuarios u ON mp.id_usuario = u.id
-      WHERE u.id_cliente = $1`,
+      WHERE u.id_cliente = $1 ${clausulaFiltroMetas}`,
       
       // NMR
       `SELECT 
@@ -1760,7 +1819,7 @@ class RelatorioExecutivoController extends BaseController {
         COUNT(DISTINCT u.id) as colaboradores_ativos
       FROM usuarios u
       LEFT JOIN reconhecimento r ON (u.id = r.id_usuario_reconhecido OR u.id = r.id_usuario_reconheceu)
-      WHERE u.id_cliente = $1`,
+      WHERE u.id_cliente = $1 ${clausulaFiltroReconhecimento}`,
       
       // ISI
       `SELECT 
@@ -1769,7 +1828,7 @@ class RelatorioExecutivoController extends BaseController {
       FROM feedbacks_portifolio fp
       INNER JOIN experiencia_portifolio ep ON fp.id_experiencia_portifolio = ep.id
       INNER JOIN usuarios u ON ep.id_usuario = u.id
-      WHERE u.id_cliente = $1`,
+      WHERE u.id_cliente = $1 ${clausulaFiltroFeedbacks}`,
       
       // MC
       `SELECT 
@@ -1811,9 +1870,137 @@ class RelatorioExecutivoController extends BaseController {
   }
 
   /**
-   * Coletar dados de árvore da vida
+   * Coletar dados de bem-estar emocional (checkin_emocional e checkin_acao)
    */
-  async coletarDadosArvoreDaVida(client, id_cliente) {
+  async coletarDadosBemEstarEmocional(client, id_cliente, filtroData = {}) {
+    const clausulaFiltroCheckin = this.gerarClausulaSQLFiltroData('ce', 'created_at', filtroData);
+    const clausulaFiltroAcao = this.gerarClausulaSQLFiltroData('ca', 'created_at', filtroData);
+    
+    // Buscar dados de checkin emocional
+    const checkinsQuery = `
+      SELECT 
+        COUNT(*) as total_checkins,
+        AVG(score) as media_nota_bem_estar,
+        COUNT(CASE WHEN score = 1 THEN 1 END) as nota_1,
+        COUNT(CASE WHEN score = 2 THEN 1 END) as nota_2,
+        COUNT(CASE WHEN score = 3 THEN 1 END) as nota_3,
+        COUNT(CASE WHEN score = 4 THEN 1 END) as nota_4,
+        COUNT(CASE WHEN score = 5 THEN 1 END) as nota_5
+      FROM checkin_emocional ce
+      INNER JOIN usuarios u ON ce.id_user = u.id
+      WHERE u.id_cliente = $1 ${clausulaFiltroCheckin}
+    `;
+
+    const checkinsResult = await client.query(checkinsQuery, [id_cliente]);
+    const checkinsData = checkinsResult.rows[0];
+
+    // Buscar agrupamento por categoria de motivo
+    const categoriasQuery = `
+      SELECT 
+        categoria_motivo,
+        COUNT(*) as quantidade
+      FROM checkin_emocional ce
+      INNER JOIN usuarios u ON ce.id_user = u.id
+      WHERE u.id_cliente = $1 AND categoria_motivo IS NOT NULL ${clausulaFiltroCheckin}
+      GROUP BY categoria_motivo
+      ORDER BY quantidade DESC
+    `;
+
+    const categoriasResult = await client.query(categoriasQuery, [id_cliente]);
+    const categoriasMotivo = categoriasResult.rows.map(row => ({
+      categoria: row.categoria_motivo,
+      quantidade: parseInt(row.quantidade)
+    }));
+
+    // Buscar dados de ações de bem-estar
+    const acoesQuery = `
+      SELECT 
+        COUNT(*) as total_acoes,
+        COUNT(CASE WHEN status = 'pendente' THEN 1 END) as acoes_pendentes,
+        COUNT(CASE WHEN status = 'em_progresso' THEN 1 END) as acoes_em_progresso,
+        COUNT(CASE WHEN status = 'concluida' THEN 1 END) as acoes_concluidas,
+        COUNT(CASE WHEN status = 'cancelada' THEN 1 END) as acoes_canceladas
+      FROM checkin_acao ca
+      INNER JOIN usuarios u ON ca.id_user = u.id
+      WHERE u.id_cliente = $1 ${clausulaFiltroAcao}
+    `;
+
+    const acoesResult = await client.query(acoesQuery, [id_cliente]);
+    const acoesData = acoesResult.rows[0];
+
+    // Buscar agrupamento de ações por tipo
+    const acoestipoQuery = `
+      SELECT 
+        tipo_acao,
+        COUNT(*) as quantidade
+      FROM checkin_acao ca
+      INNER JOIN usuarios u ON ca.id_user = u.id
+      WHERE u.id_cliente = $1
+      GROUP BY tipo_acao
+      ORDER BY quantidade DESC
+    `;
+
+    const acoesTipoResult = await client.query(acoestipoQuery, [id_cliente]);
+    const acoesPorTipo = acoesTipoResult.rows.map(row => ({
+      tipo_acao: row.tipo_acao,
+      quantidade: parseInt(row.quantidade)
+    }));
+
+    // Buscar agrupamento de ações por prioridade
+    const acoesprioridadeQuery = `
+      SELECT 
+        prioridade,
+        COUNT(*) as quantidade
+      FROM checkin_acao ca
+      INNER JOIN usuarios u ON ca.id_user = u.id
+      WHERE u.id_cliente = $1
+      GROUP BY prioridade
+      ORDER BY 
+        CASE prioridade
+          WHEN 'alta' THEN 1
+          WHEN 'normal' THEN 2
+          WHEN 'baixa' THEN 3
+          ELSE 4
+        END
+    `;
+
+    const acoesPrioridadeResult = await client.query(acoesprioridadeQuery, [id_cliente]);
+    const acoesPorPrioridade = acoesPrioridadeResult.rows.map(row => ({
+      prioridade: row.prioridade,
+      quantidade: parseInt(row.quantidade)
+    }));
+
+    const totalCheckins = parseInt(checkinsData.total_checkins) || 0;
+    const mediaNotaBemEstar = totalCheckins > 0 ? parseFloat(checkinsData.media_nota_bem_estar).toFixed(2) : 0;
+    const totalAcoes = parseInt(acoesData.total_acoes) || 0;
+    const percentualAcoesConcluidas = totalAcoes > 0 ? parseFloat(((parseInt(acoesData.acoes_concluidas) / totalAcoes) * 100).toFixed(2)) : 0;
+
+    return {
+      checkin_emocional: {
+        total_checkins: totalCheckins,
+        media_nota_bem_estar: parseFloat(mediaNotaBemEstar),
+        distribuicao_por_nota: {
+          nota_1: parseInt(checkinsData.nota_1) || 0,
+          nota_2: parseInt(checkinsData.nota_2) || 0,
+          nota_3: parseInt(checkinsData.nota_3) || 0,
+          nota_4: parseInt(checkinsData.nota_4) || 0,
+          nota_5: parseInt(checkinsData.nota_5) || 0
+        },
+        categorias_motivo: categoriasMotivo
+      },
+      acoes_bem_estar: {
+        total_acoes: totalAcoes,
+        acoes_pendentes: parseInt(acoesData.acoes_pendentes) || 0,
+        acoes_em_progresso: parseInt(acoesData.acoes_em_progresso) || 0,
+        acoes_concluidas: parseInt(acoesData.acoes_concluidas) || 0,
+        acoes_canceladas: parseInt(acoesData.acoes_canceladas) || 0,
+        percentual_conclusao: percentualAcoesConcluidas,
+        acoes_por_tipo: acoesPorTipo,
+        acoes_por_prioridade: acoesPorPrioridade
+      }
+    };
+  }
+  async coletarDadosArvoreDaVida(client, id_cliente, filtroData = {}) {
     const query = `
       SELECT 
         AVG(plenitude_felicidade) as media_plenitude,
@@ -1852,7 +2039,7 @@ class RelatorioExecutivoController extends BaseController {
   /**
    * Coletar dados de análise SWOT
    */
-  async coletarDadosAnaliseSwot(client, id_cliente) {
+  async coletarDadosAnaliseSwot(client, id_cliente, filtroData = {}) {
     const query = `
       SELECT 
         COUNT(CASE WHEN LOWER(cs.categoria) = 'forças' THEN 1 END) as total_forcas,
@@ -1888,7 +2075,7 @@ class RelatorioExecutivoController extends BaseController {
   /**
    * Coletar dados de PDI
    */
-  async coletarDadosPDI(client, id_cliente) {
+  async coletarDadosPDI(client, id_cliente, filtroData = {}) {
     const queries = [
       `SELECT 
         COUNT(CASE WHEN ap.status_atividade = 'Concluída' THEN 1 END) as atividades_concluidas,
@@ -1935,7 +2122,7 @@ class RelatorioExecutivoController extends BaseController {
   /**
    * Coletar dados de portfólio
    */
-  async coletarDadosPortfolio(client, id_cliente) {
+  async coletarDadosPortfolio(client, id_cliente, filtroData = {}) {
     const queries = [
       `SELECT 
         COUNT(DISTINCT CASE WHEN ep.created_at >= NOW() - INTERVAL '90 days' THEN ep.id_usuario END) as usuarios_atualizados,
@@ -1982,7 +2169,7 @@ class RelatorioExecutivoController extends BaseController {
   /**
    * Coletar dados de reconhecimento
    */
-  async coletarDadosReconhecimento(client, id_cliente) {
+  async coletarDadosReconhecimento(client, id_cliente, filtroData = {}) {
     const queries = [
       `SELECT 
         COUNT(r.id) as total_reconhecimentos,
@@ -2050,7 +2237,7 @@ class RelatorioExecutivoController extends BaseController {
   /**
    * Coletar dados de tendência
    */
-  async coletarDadosTendencia(client, id_cliente) {
+  async coletarDadosTendencia(client, id_cliente, filtroData = {}) {
     const queries = [
       `WITH reconhecimentos_bidirecionais AS (
         SELECT 
@@ -2109,534 +2296,705 @@ class RelatorioExecutivoController extends BaseController {
    * Gerar PDF do Relatório Executivo
    * GET /api/relatorio-executivo/gerar-pdf/:id_cliente
    */
-  async gerarPDFRelatorio(req, res) {
-    const client = await pool.connect();
-    
+  /**
+   * Gerar Excel do Relatório Executivo Completo
+   * @param {number} id_cliente - ID do cliente
+   * @param {string} periodo - Período de filtro (opcional)
+   * @returns {Buffer} - Buffer do Excel
+   */
+  async gerarExcelRelatorio(id_cliente, periodo = null) {
+  }
+
+  /**
+   * Gerar HTML do Relatório Executivo com gráficos
+   * @param {object} dados - Dados coletados do relatório
+   * @returns {string} - HTML do relatório
+   */
+  gerarHTMLRelatorio(dados) {
+    const formatarNumero = (valor, casasDecimais = 2) => {
+      if (typeof valor !== 'number') return 'N/A';
+      return valor.toFixed(casasDecimais);
+    };
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Relatório Executivo</title>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+        <style>
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f8f9fa;
+            padding: 20px;
+          }
+          .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            border-radius: 8px;
+          }
+          
+          /* HEADER */
+          .header {
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            margin: -40px -40px 40px -40px;
+            border-radius: 8px 8px 0 0;
+          }
+          .header h1 {
+            font-size: 40px;
+            margin-bottom: 10px;
+            font-weight: 700;
+          }
+          .header .metadata {
+            font-size: 13px;
+            opacity: 0.9;
+            margin-top: 15px;
+          }
+          
+          /* SEÇÕES */
+          .section {
+            margin-bottom: 40px;
+            page-break-inside: avoid;
+            border: 1px solid #eee;
+            border-radius: 6px;
+            padding: 25px;
+            background: #fafbfc;
+          }
+          .section h2 {
+            font-size: 22px;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+          }
+          
+          /* GRID DE CARDS */
+          .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+          }
+          .metric-card {
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 18px;
+            text-align: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+          }
+          .metric-card .label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            font-weight: 600;
+          }
+          .metric-card .value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #667eea;
+          }
+          
+          /* CHARTS */
+          .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 20px;
+            background: white;
+            border-radius: 6px;
+            padding: 15px;
+            border: 1px solid #eee;
+          }
+          .chart-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
+          }
+          
+          /* TABELAS */
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+            background: white;
+            border-radius: 6px;
+            overflow: hidden;
+          }
+          thead {
+            background: #667eea;
+            color: white;
+          }
+          thead th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+          }
+          tbody tr:nth-child(even) {
+            background: #f9f9f9;
+          }
+          tbody tr:hover {
+            background: #f0f0f0;
+          }
+          tbody td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+          }
+          
+          /* FOOTER */
+          .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #eee;
+            color: #999;
+            font-size: 12px;
+          }
+          
+          @media print {
+            .section { page-break-inside: avoid; }
+            .chart-row { page-break-inside: avoid; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <!-- HEADER -->
+          <div class="header">
+            <h1>📊 Relatório Executivo</h1>
+            <div class="metadata">
+              <strong>Cliente ID:</strong> ${dados.id_cliente} | 
+              <strong>Gerado em:</strong> ${dados.data_geracao} |
+              <strong>Período:</strong> ${dados.periodo_filtro === 'completo' ? 'Completo' : dados.periodo_filtro}
+            </div>
+          </div>
+
+          <!-- VISÃO GERAL -->
+          <div class="section">
+            <h2>🎯 Visão Geral</h2>
+            <div class="metrics-grid">
+              <div class="metric-card">
+                <div class="label">Engajamento Geral</div>
+                <div class="value">${formatarNumero(dados.visao_geral.indice_engajamento_geral)}</div>
+              </div>
+              <div class="metric-card">
+                <div class="label">Maturidade Carreira</div>
+                <div class="value">${formatarNumero(dados.visao_geral.maturidade_carreira)}</div>
+              </div>
+              <div class="metric-card">
+                <div class="label">Reconhecimento Médio</div>
+                <div class="value">${formatarNumero(dados.visao_geral.nivel_medio_reconhecimento)}</div>
+              </div>
+              <div class="metric-card">
+                <div class="label">Evolução Desenvolvimento</div>
+                <div class="value">${formatarNumero(dados.visao_geral.taxa_evolucao_desenvolvimento)}%</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ÁRVORE DA VIDA -->
+          <div class="section">
+            <h2>🌳 Árvore da Vida</h2>
+            <div class="chart-row">
+              <div class="chart-container">
+                <canvas id="arvoreChart"></canvas>
+              </div>
+              <div class="metrics-grid">
+                <div class="metric-card">
+                  <div class="label">Plenitude</div>
+                  <div class="value">${formatarNumero(dados.arvore_da_vida.indice_plenitude)}</div>
+                </div>
+                <div class="metric-card">
+                  <div class="label">Vitalidade</div>
+                  <div class="value">${formatarNumero(dados.arvore_da_vida.indice_vitalidade)}</div>
+                </div>
+                <div class="metric-card">
+                  <div class="label">Propósito</div>
+                  <div class="value">${formatarNumero(dados.arvore_da_vida.indice_proposito_contribuicao)}</div>
+                </div>
+                <div class="metric-card">
+                  <div class="label">Profissional Global</div>
+                  <div class="value">${formatarNumero(dados.arvore_da_vida.indice_profissional_global)}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ANÁLISE SWOT -->
+          <div class="section">
+            <h2>⚔️ Análise SWOT</h2>
+            <div class="chart-row">
+              <div class="chart-container">
+                <canvas id="swotChart"></canvas>
+              </div>
+              <div class="metrics-grid">
+                <div class="metric-card">
+                  <div class="label">Forças vs Fraquezas</div>
+                  <div class="value">${formatarNumero(dados.analise_swot.forcas_vs_fraquezas_ratio)}</div>
+                </div>
+                <div class="metric-card">
+                  <div class="label">Oportunidades</div>
+                  <div class="value">${formatarNumero(dados.analise_swot.oportunidades_aproveitadas)}%</div>
+                </div>
+                <div class="metric-card">
+                  <div class="label">Ameaças Monitoradas</div>
+                  <div class="value">${formatarNumero(dados.analise_swot.ameacas_monitoradas)}%</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- PDI -->
+          <div class="section">
+            <h2>📈 Plano de Desenvolvimento Individual (PDI)</h2>
+            <div class="chart-row">
+              <div class="chart-container">
+                <canvas id="pdiChart"></canvas>
+              </div>
+              <div class="metrics-grid">
+                <div class="metric-card">
+                  <div class="label">Progresso Médio</div>
+                  <div class="value">${formatarNumero(dados.pdi.progresso_medio_pdi)}%</div>
+                </div>
+                <div class="metric-card">
+                  <div class="label">Metas em Progresso</div>
+                  <div class="value">${formatarNumero(dados.pdi.taxa_metas_progresso)}%</div>
+                </div>
+                <div class="metric-card">
+                  <div class="label">Aderência ao Prazo</div>
+                  <div class="value">${formatarNumero(dados.pdi.aderencia_prazo)}%</div>
+                </div>
+                <div class="metric-card">
+                  <div class="label">Engajamento Mentoria</div>
+                  <div class="value">${formatarNumero(dados.pdi.engajamento_mentoria)}%</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- PORTFÓLIO -->
+          <div class="section">
+            <h2>💼 Portfólio</h2>
+            <div class="chart-row">
+              <div class="chart-container">
+                <canvas id="portfolioChart"></canvas>
+              </div>
+              <div class="metrics-grid">
+                <div class="metric-card">
+                  <div class="label">Atualização</div>
+                  <div class="value">${formatarNumero(dados.portfolio.taxa_atualizacao_portfolio)}%</div>
+                </div>
+                <div class="metric-card">
+                  <div class="label">Feedbacks Positivos</div>
+                  <div class="value">${formatarNumero(dados.portfolio.indice_feedbacks_positivos)}%</div>
+                </div>
+                <div class="metric-card">
+                  <div class="label">Conquistas Validadas</div>
+                  <div class="value">${formatarNumero(dados.portfolio.conquistas_validadas)}%</div>
+                </div>
+                <div class="metric-card">
+                  <div class="label">Ações de Melhoria</div>
+                  <div class="value">${formatarNumero(dados.portfolio.acoes_melhoria)}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- RECONHECIMENTO -->
+          <div class="section">
+            <h2>🏆 Programa de Reconhecimento</h2>
+            <div class="metrics-grid">
+              <div class="metric-card">
+                <div class="label">Reconhecimentos por Colaborador</div>
+                <div class="value">${formatarNumero(dados.reconhecimento.reconhecimentos_por_colaborador)}</div>
+              </div>
+              <div class="metric-card">
+                <div class="label">Tempo Médio entre Reconhecimentos</div>
+                <div class="value">${dados.reconhecimento.tempo_medio_entre_reconhecimentos ? formatarNumero(dados.reconhecimento.tempo_medio_entre_reconhecimentos) + ' dias' : 'N/A'}</div>
+              </div>
+            </div>
+            
+            ${dados.reconhecimento.top_skills_reconhecidas && dados.reconhecimento.top_skills_reconhecidas.length > 0 ? `
+              <h3 style="color: #667eea; margin-top: 20px; margin-bottom: 10px;">Top Skills Reconhecidas:</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Skill</th>
+                    <th>Frequência</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${dados.reconhecimento.top_skills_reconhecidas.slice(0, 5).map(skill => `
+                    <tr>
+                      <td>${skill.skill || 'N/A'}</td>
+                      <td>${skill.frequencia || 0}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            ` : ''}
+          </div>
+
+          <!-- TENDÊNCIAS -->
+          <div class="section">
+            <h2>📊 KPIs de Tendência</h2>
+            <div class="metrics-grid">
+              <div class="metric-card">
+                <div class="label">Reconhecimento Recíproco</div>
+                <div class="value">${formatarNumero(dados.tendencia.indice_reconhecimento_reciproco)}%</div>
+              </div>
+              <div class="metric-card">
+                <div class="label">Bem-Estar Organizacional</div>
+                <div class="value">${formatarNumero(dados.tendencia.indice_bem_estar_organizacional)}</div>
+              </div>
+              <div class="metric-card">
+                <div class="label">Evolução de Meta (dias)</div>
+                <div class="value">${formatarNumero(dados.tendencia.tempo_medio_evolucao_meta, 0)}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- FOOTER -->
+          <div class="footer">
+            <p>Relatório gerado automaticamente pelo sistema Impulsionar Talentos</p>
+            <p style="margin-top: 8px; color: #bbb;">Todos os dados são confidenciais e de uso exclusivo da organização</p>
+          </div>
+        </div>
+
+        <script>
+          // Cores padrão
+          const colors = {
+            primary: '#667eea',
+            secondary: '#764ba2',
+            success: '#48bb78',
+            danger: '#f56565',
+            warning: '#ed8936',
+            info: '#4299e1'
+          };
+
+          // ÁRVORE DA VIDA - Radar Chart
+          const arvoreCtx = document.getElementById('arvoreChart');
+          if (arvoreCtx) {
+            new Chart(arvoreCtx, {
+              type: 'radar',
+              data: {
+                labels: ['Plenitude', 'Vitalidade', 'Propósito', 'Profissional'],
+                datasets: [{
+                  label: 'Índices da Árvore',
+                  data: [
+                    ${dados.arvore_da_vida.indice_plenitude},
+                    ${dados.arvore_da_vida.indice_vitalidade},
+                    ${dados.arvore_da_vida.indice_proposito_contribuicao},
+                    ${dados.arvore_da_vida.indice_profissional_global}
+                  ],
+                  borderColor: colors.primary,
+                  backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                  pointBackgroundColor: colors.primary,
+                  pointBorderColor: '#fff',
+                  pointBorderWidth: 2
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { display: true, position: 'top' }
+                },
+                scales: {
+                  r: {
+                    beginAtZero: true,
+                    max: 10
+                  }
+                }
+              }
+            });
+          }
+
+          // SWOT - Bar Chart
+          const swotCtx = document.getElementById('swotChart');
+          if (swotCtx) {
+            new Chart(swotCtx, {
+              type: 'bar',
+              data: {
+                labels: ['F/F Ratio', 'Oportunidades', 'Ameaças'],
+                datasets: [{
+                  label: 'Valores',
+                  data: [
+                    ${dados.analise_swot.forcas_vs_fraquezas_ratio},
+                    ${dados.analise_swot.oportunidades_aproveitadas},
+                    ${dados.analise_swot.ameacas_monitoradas}
+                  ],
+                  backgroundColor: [colors.primary, colors.success, colors.warning],
+                  borderColor: [colors.primary, colors.success, colors.warning],
+                  borderWidth: 2
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: {
+                  legend: { display: false }
+                },
+                scales: {
+                  x: { beginAtZero: true, max: 100 }
+                }
+              }
+            });
+          }
+
+          // PDI - Progress Doughnut
+          const pdiCtx = document.getElementById('pdiChart');
+          if (pdiCtx) {
+            new Chart(pdiCtx, {
+              type: 'doughnut',
+              data: {
+                labels: ['Progresso', 'Metas em Progresso', 'Aderência ao Prazo', 'Mentoria'],
+                datasets: [{
+                  data: [
+                    ${dados.pdi.progresso_medio_pdi},
+                    ${dados.pdi.taxa_metas_progresso},
+                    ${dados.pdi.aderencia_prazo},
+                    ${dados.pdi.engajamento_mentoria}
+                  ],
+                  backgroundColor: [
+                    colors.primary,
+                    colors.secondary,
+                    colors.success,
+                    colors.warning
+                  ],
+                  borderWidth: 2,
+                  borderColor: '#fff'
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { position: 'bottom' }
+                }
+              }
+            });
+          }
+
+          // PORTFÓLIO - Line Chart
+          const portfolioCtx = document.getElementById('portfolioChart');
+          if (portfolioCtx) {
+            new Chart(portfolioCtx, {
+              type: 'line',
+              data: {
+                labels: ['Atualização', 'Feedbacks', 'Conquistas', 'Melhorias'],
+                datasets: [{
+                  label: 'Desempenho',
+                  data: [
+                    ${dados.portfolio.taxa_atualizacao_portfolio},
+                    ${dados.portfolio.indice_feedbacks_positivos},
+                    ${dados.portfolio.conquistas_validadas},
+                    ${dados.portfolio.acoes_melhoria}
+                  ],
+                  borderColor: colors.primary,
+                  backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                  borderWidth: 3,
+                  fill: true,
+                  tension: 0.4,
+                  pointBackgroundColor: colors.primary,
+                  pointBorderColor: '#fff',
+                  pointBorderWidth: 2,
+                  pointRadius: 5
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { display: false }
+                },
+                scales: {
+                  y: { beginAtZero: true, max: 100 }
+                }
+              }
+            });
+          }
+        </script>
+      </body>
+      </html>
+    `;
+
+    return html;
+  }
+
+  /**
+   * Gerar PDF do Relatório Executivo usando Puppeteer
+   * GET /api/relatorio-executivo/gerar-pdf/:id_cliente
+   */
+  async gerarPDFRelatorio(id_cliente, periodo = null) {
     try {
-      const { id_cliente } = req.params;
+      logger.info('Gerando PDF do relatório executivo', { id_cliente, periodo });
 
-      logger.info('Gerando PDF do Relatório Executivo', { id_cliente });
+      // Coletar dados do relatório
+      const dados = await this.coletarTodosOsDados(id_cliente, periodo);
 
-      if (!id_cliente || isNaN(id_cliente)) {
-        return res.status(400).json({
-          success: false,
-          message: 'ID do cliente é obrigatório e deve ser um número válido'
+      // Gerar HTML
+      const html = this.gerarHTMLRelatorio(dados);
+
+      // Usar Puppeteer para converter HTML em PDF
+      const browser = await puppeteer.launch({
+        headless: 'new',
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+      });
+
+      try {
+        const page = await browser.newPage();
+        await page.setContent(html, { waitUntil: 'domcontentloaded' });
+
+        const pdfData = await page.pdf({
+          format: 'A4',
+          margin: {
+            top: '10mm',
+            right: '10mm',
+            bottom: '10mm',
+            left: '10mm'
+          },
+          printBackground: true
         });
+
+        // Garantir que é um Buffer válido
+        const pdfBuffer = Buffer.isBuffer(pdfData) ? pdfData : Buffer.from(pdfData);
+        
+        logger.info('PDF gerado com sucesso', { id_cliente, tamanho: pdfBuffer.length });
+        return pdfBuffer;
+
+      } finally {
+        await browser.close();
       }
 
-      // Coletar todos os dados
-      const dadosRelatorio = await this.coletarTodosOsDados(id_cliente);
-
-      // Gerar HTML do relatório
-      const html = this.gerarHTMLRelatorio(dadosRelatorio);
-
-      // Gerar PDF usando Puppeteer
-      const browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-      });
-      
-      const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: 'networkidle0' });
-      
-      const pdfBuffer = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: {
-          top: '20mm',
-          right: '15mm',
-          bottom: '20mm',
-          left: '15mm'
-        }
-      });
-
-      await browser.close();
-
-      // Definir headers para download
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="relatorio-executivo-cliente-${id_cliente}-${new Date().toISOString().split('T')[0]}.pdf"`);
-      res.setHeader('Content-Length', pdfBuffer.length);
-
-      return res.send(pdfBuffer);
-
     } catch (error) {
-      logger.error('Erro ao gerar PDF do relatório:', error);
-      return this.handleError(res, error, 'Erro ao gerar PDF do relatório');
-    } finally {
-      client.release();
+      logger.error('Erro ao gerar PDF:', error);
+      throw new Error('Erro ao gerar PDF do relatório executivo: ' + error.message);
     }
   }
 
   /**
-   * Gerar Excel do Relatório Executivo
-   * GET /api/relatorio-executivo/gerar-excel/:id_cliente
+   * Gerar Excel do Relatório Executivo Completo
+   * @param {number} id_cliente - ID do cliente
+   * @param {string} periodo - Período de filtro (opcional)
+   * @returns {Buffer} - Buffer do Excel
    */
-  async gerarExcelRelatorio(req, res) {
-    const client = await pool.connect();
-    
+  async gerarExcelRelatorio(id_cliente, periodo = null) {
     try {
-      const { id_cliente } = req.params;
+      logger.info('Gerando Excel do relatório executivo', { id_cliente, periodo });
 
-      logger.info('Gerando Excel do Relatório Executivo', { id_cliente });
-
-      if (!id_cliente || isNaN(id_cliente)) {
-        return res.status(400).json({
-          success: false,
-          message: 'ID do cliente é obrigatório e deve ser um número válido'
-        });
-      }
-
-      // Coletar todos os dados
-      const dadosRelatorio = await this.coletarTodosOsDados(id_cliente);
+      // Coletar dados do relatório
+      const dados = await this.coletarTodosOsDados(id_cliente, periodo);
 
       // Criar workbook
       const workbook = XLSX.utils.book_new();
 
-      // Aba 1: Visão Geral
-      const visaoGeralData = [
-        ['Métrica', 'Valor', 'Descrição'],
-        ['Índice de Engajamento Geral', dadosRelatorio.visao_geral.indice_engajamento_geral, 'Média ponderada dos pilares da Árvore da Vida'],
-        ['Taxa de Evolução de Desenvolvimento', `${dadosRelatorio.visao_geral.taxa_evolucao_desenvolvimento}%`, 'Atividades concluídas ÷ Atividades planejadas no PDI'],
-        ['Nível Médio de Reconhecimento', dadosRelatorio.visao_geral.nivel_medio_reconhecimento, 'Total de reconhecimentos ÷ Colaboradores ativos'],
-        ['Índice de Satisfação Interna', `${dadosRelatorio.visao_geral.indice_satisfacao_interna}%`, 'Feedbacks positivos no portfólio'],
-        ['Maturidade de Carreira', dadosRelatorio.visao_geral.maturidade_carreira, 'Metas + Evoluções ÷ Tempo de casa']
+      // Sheet 1: Resumo Executivo
+      const sheetResumo = [
+        ['RELATÓRIO EXECUTIVO - IMPULSIONAR TALENTOS'],
+        [''],
+        ['ID Cliente:', id_cliente],
+        ['Data de Geração:', dados.data_geracao],
+        ['Período:', dados.periodo_filtro],
+        [''],
+        ['=== VISÃO GERAL ==='],
+        ['Métrica', 'Valor'],
+        ['Índice de Engajamento Geral', dados.visao_geral.indice_engajamento_geral],
+        ['Taxa de Evolução de Desenvolvimento', dados.visao_geral.taxa_evolucao_desenvolvimento + '%'],
+        ['Nível Médio de Reconhecimento', dados.visao_geral.nivel_medio_reconhecimento],
+        ['Índice de Satisfação Interna', dados.visao_geral.indice_satisfacao_interna + '%'],
+        ['Maturidade de Carreira', dados.visao_geral.maturidade_carreira],
+        [''],
+        ['=== BEM-ESTAR EMOCIONAL ==='],
+        ['Métrica', 'Valor'],
+        ['Total de Check-ins', dados.bem_estar_emocional.checkin_emocional.total_checkins],
+        ['Média de Nota de Bem-Estar', dados.bem_estar_emocional.checkin_emocional.media_nota_bem_estar],
+        ['Total de Ações', dados.bem_estar_emocional.acoes_bem_estar.total_acoes],
+        ['Ações Concluídas', dados.bem_estar_emocional.acoes_bem_estar.acoes_concluidas],
+        ['Taxa de Conclusão de Ações', dados.bem_estar_emocional.acoes_bem_estar.percentual_conclusao + '%'],
       ];
-      const wsVisaoGeral = XLSX.utils.aoa_to_sheet(visaoGeralData);
-      XLSX.utils.book_append_sheet(workbook, wsVisaoGeral, 'Visão Geral');
 
-      // Aba 2: Árvore da Vida
-      const arvoreData = [
-        ['Métrica', 'Valor', 'Descrição'],
-        ['Índice de Plenitude', dadosRelatorio.arvore_da_vida.indice_plenitude, 'Média dos pilares Plenitude, Felicidade e Realização'],
-        ['Índice de Vitalidade', dadosRelatorio.arvore_da_vida.indice_vitalidade, 'Média dos pilares Saúde, Equilíbrio e Energia'],
-        ['Índice de Propósito e Contribuição', dadosRelatorio.arvore_da_vida.indice_proposito_contribuicao, 'Média de Espiritualidade + Contribuição Social'],
-        ['Índice Profissional Global', dadosRelatorio.arvore_da_vida.indice_profissional_global, 'Média de Profissional + Desenvolvimento + Recursos Financeiros']
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(sheetResumo), 'Resumo');
+
+      // Sheet 2: Bem-Estar Emocional - Distribuição por Nota
+      const sheetBemEstarDistribuicao = [
+        ['BEM-ESTAR EMOCIONAL - DISTRIBUIÇÃO POR NOTA'],
+        ['Nota', 'Quantidade'],
+        ['1 - Muito Ruim', dados.bem_estar_emocional.checkin_emocional.distribuicao_por_nota.nota_1],
+        ['2 - Ruim', dados.bem_estar_emocional.checkin_emocional.distribuicao_por_nota.nota_2],
+        ['3 - Neutro', dados.bem_estar_emocional.checkin_emocional.distribuicao_por_nota.nota_3],
+        ['4 - Bom', dados.bem_estar_emocional.checkin_emocional.distribuicao_por_nota.nota_4],
+        ['5 - Excelente', dados.bem_estar_emocional.checkin_emocional.distribuicao_por_nota.nota_5],
+        [''],
+        ['CATEGORIAS DE MOTIVO'],
+        ['Categoria', 'Quantidade'],
+        ...dados.bem_estar_emocional.checkin_emocional.categorias_motivo.map(c => [c.categoria, c.quantidade])
       ];
-      const wsArvore = XLSX.utils.aoa_to_sheet(arvoreData);
-      XLSX.utils.book_append_sheet(workbook, wsArvore, 'Árvore da Vida');
 
-      // Aba 3: Análise SWOT
-      const swotData = [
-        ['Métrica', 'Valor', 'Descrição'],
-        ['Forças vs Fraquezas Ratio', dadosRelatorio.analise_swot.forcas_vs_fraquezas_ratio, 'Nº de forças ÷ Nº de fraquezas'],
-        ['Oportunidades Aproveitadas', `${dadosRelatorio.analise_swot.oportunidades_aproveitadas}%`, 'Oportunidades transformadas em ações do PDI'],
-        ['Ameaças Monitoradas', `${dadosRelatorio.analise_swot.ameacas_monitoradas}%`, 'Ameaças com plano mitigado']
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(sheetBemEstarDistribuicao), 'Bem-Estar Distribuição');
+
+      // Sheet 3: Ações de Bem-Estar
+      const sheetAcoesDistribuicao = [
+        ['AÇÕES DE BEM-ESTAR - DISTRIBUIÇÃO'],
+        ['Status', 'Quantidade'],
+        ['Pendente', dados.bem_estar_emocional.acoes_bem_estar.acoes_pendentes],
+        ['Em Progresso', dados.bem_estar_emocional.acoes_bem_estar.acoes_em_progresso],
+        ['Concluída', dados.bem_estar_emocional.acoes_bem_estar.acoes_concluidas],
+        ['Cancelada', dados.bem_estar_emocional.acoes_bem_estar.acoes_canceladas],
+        [''],
+        ['AÇÕES POR TIPO'],
+        ['Tipo', 'Quantidade'],
+        ...dados.bem_estar_emocional.acoes_bem_estar.acoes_por_tipo.map(t => [t.tipo_acao, t.quantidade]),
+        [''],
+        ['AÇÕES POR PRIORIDADE'],
+        ['Prioridade', 'Quantidade'],
+        ...dados.bem_estar_emocional.acoes_bem_estar.acoes_por_prioridade.map(p => [p.prioridade, p.quantidade])
       ];
-      const wsSwot = XLSX.utils.aoa_to_sheet(swotData);
-      XLSX.utils.book_append_sheet(workbook, wsSwot, 'Análise SWOT');
 
-      // Aba 4: PDI
-      const pdiData = [
-        ['Métrica', 'Valor', 'Descrição'],
-        ['Progresso Médio do PDI', `${dadosRelatorio.pdi.progresso_medio_pdi}%`, 'Atividades concluídas'],
-        ['Taxa de Metas em Progresso', `${dadosRelatorio.pdi.taxa_metas_progresso}%`, 'Metas "em andamento" ÷ Total de metas'],
-        ['Aderência ao Prazo', `${dadosRelatorio.pdi.aderencia_prazo}%`, 'Metas dentro do prazo'],
-        ['Engajamento com Mentoria', `${dadosRelatorio.pdi.engajamento_mentoria}%`, 'Participações em mentorias']
-      ];
-      const wsPdi = XLSX.utils.aoa_to_sheet(pdiData);
-      XLSX.utils.book_append_sheet(workbook, wsPdi, 'PDI');
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(sheetAcoesDistribuicao), 'Ações de Bem-Estar');
 
-      // Aba 5: Portfólio
-      const portfolioData = [
-        ['Métrica', 'Valor', 'Descrição'],
-        ['Taxa de Atualização do Portfólio', `${dadosRelatorio.portfolio.taxa_atualizacao_portfolio}%`, 'Colaboradores com experiências nos últimos 90 dias'],
-        ['Índice de Feedbacks Positivos', `${dadosRelatorio.portfolio.indice_feedbacks_positivos}%`, 'Feedbacks positivos ÷ Total de feedbacks'],
-        ['Conquistas Validadas', `${dadosRelatorio.portfolio.conquistas_validadas}%`, 'Experiências com evidências comprovadas'],
-        ['Ações de Melhoria', dadosRelatorio.portfolio.acoes_melhoria, 'Média de ações registradas por colaborador']
-      ];
-      const wsPortfolio = XLSX.utils.aoa_to_sheet(portfolioData);
-      XLSX.utils.book_append_sheet(workbook, wsPortfolio, 'Portfólio');
+      // Sheet 4: Top Skills Reconhecidas
+      if (dados.reconhecimento.top_skills_reconhecidas && dados.reconhecimento.top_skills_reconhecidas.length > 0) {
+        const sheetSkills = [
+          ['TOP SKILLS RECONHECIDAS'],
+          ['Skill', 'Frequência'],
+          ...dados.reconhecimento.top_skills_reconhecidas.map(s => [s.skill, s.frequencia])
+        ];
 
-      // Aba 6: Reconhecimento
-      const reconhecimentoData = [
-        ['Métrica', 'Valor', 'Descrição'],
-        ['Reconhecimentos por Colaborador', dadosRelatorio.reconhecimento.reconhecimentos_por_colaborador, 'Total de reconhecimentos ÷ Total de colaboradores'],
-        ['Tempo Médio entre Reconhecimentos', `${dadosRelatorio.reconhecimento.tempo_medio_entre_reconhecimentos} dias`, 'Dias médios entre reconhecimentos'],
-        ['', '', ''],
-        ['Top Skills Reconhecidas', 'Frequência', ''],
-        ...dadosRelatorio.reconhecimento.top_skills_reconhecidas.map(skill => [skill.skill, skill.frequencia, '']),
-        ['', '', ''],
-        ['Distribuição por Área', 'Reconhecimentos', 'Colaboradores', 'Percentual'],
-        ...dadosRelatorio.reconhecimento.distribuicao_reconhecimento_por_area.map(area => [
-          area.departamento, 
-          area.total_reconhecimentos, 
-          area.colaboradores_departamento, 
-          `${area.percentual}%`
-        ])
-      ];
-      const wsReconhecimento = XLSX.utils.aoa_to_sheet(reconhecimentoData);
-      XLSX.utils.book_append_sheet(workbook, wsReconhecimento, 'Reconhecimento');
+        XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(sheetSkills), 'Top Skills');
+      }
 
-      // Aba 7: Tendências
-      const tendenciaData = [
-        ['Métrica', 'Valor', 'Descrição'],
-        ['Índice de Reconhecimento Recíproco', `${dadosRelatorio.tendencia.indice_reconhecimento_reciproco}%`, 'Reconhecimentos dados e recebidos por par'],
-        ['Índice de Bem-Estar Organizacional', dadosRelatorio.tendencia.indice_bem_estar_organizacional, 'Média de Plenitude + Saúde + Equilíbrio'],
-        ['Tempo Médio de Evolução de Meta', `${dadosRelatorio.tendencia.tempo_medio_evolucao_meta} dias`, 'Dias até conclusão de metas']
-      ];
-      const wsTendencia = XLSX.utils.aoa_to_sheet(tendenciaData);
-      XLSX.utils.book_append_sheet(workbook, wsTendencia, 'Tendências');
+      // Converter para Buffer
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
 
-      // Gerar buffer do Excel
-      const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-
-      // Definir headers para download
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition', `attachment; filename="relatorio-executivo-cliente-${id_cliente}-${new Date().toISOString().split('T')[0]}.xlsx"`);
-      res.setHeader('Content-Length', excelBuffer.length);
-
-      return res.send(excelBuffer);
+      logger.info('Excel gerado com sucesso', { id_cliente });
+      return excelBuffer;
 
     } catch (error) {
-      logger.error('Erro ao gerar Excel do relatório:', error);
-      return this.handleError(res, error, 'Erro ao gerar Excel do relatório');
-    } finally {
-      client.release();
+      logger.error('Erro ao gerar Excel:', error);
+      throw new Error('Erro ao gerar Excel do relatório executivo: ' + error.message);
     }
-  }
-
-  /**
-   * Gerar HTML do relatório para PDF
-   */
-  gerarHTMLRelatorio(dados) {
-    return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <title>Relatório Executivo - Cliente ${dados.id_cliente}</title>
-        <style>
-            body {
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                margin: 0;
-                padding: 20px;
-                background-color: #f8f9fa;
-                color: #333;
-            }
-            .header {
-                text-align: center;
-                margin-bottom: 30px;
-                padding: 20px;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                border-radius: 10px;
-            }
-            .header h1 {
-                margin: 0;
-                font-size: 28px;
-                font-weight: 300;
-            }
-            .header p {
-                margin: 5px 0 0 0;
-                opacity: 0.9;
-            }
-            .section {
-                margin-bottom: 30px;
-                background: white;
-                border-radius: 10px;
-                padding: 25px;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                page-break-inside: avoid;
-            }
-            .section h2 {
-                color: #667eea;
-                border-bottom: 2px solid #667eea;
-                padding-bottom: 10px;
-                margin-bottom: 20px;
-                font-size: 22px;
-            }
-            .metric-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-                gap: 20px;
-                margin-bottom: 20px;
-            }
-            .metric-card {
-                background: #f8f9fa;
-                padding: 20px;
-                border-radius: 8px;
-                border-left: 4px solid #667eea;
-            }
-            .metric-title {
-                font-weight: 600;
-                color: #495057;
-                margin-bottom: 8px;
-                font-size: 14px;
-            }
-            .metric-value {
-                font-size: 24px;
-                font-weight: 700;
-                color: #667eea;
-                margin-bottom: 5px;
-            }
-            .metric-description {
-                font-size: 12px;
-                color: #6c757d;
-                line-height: 1.4;
-            }
-            .table {
-                width: 100%;
-                border-collapse: collapse;
-                margin-top: 15px;
-            }
-            .table th, .table td {
-                padding: 12px;
-                text-align: left;
-                border-bottom: 1px solid #dee2e6;
-            }
-            .table th {
-                background-color: #667eea;
-                color: white;
-                font-weight: 600;
-            }
-            .table tr:nth-child(even) {
-                background-color: #f8f9fa;
-            }
-            .footer {
-                text-align: center;
-                margin-top: 40px;
-                padding: 20px;
-                color: #6c757d;
-                font-size: 12px;
-                border-top: 1px solid #dee2e6;
-            }
-            .highlight {
-                background-color: #fff3cd;
-                padding: 15px;
-                border-radius: 8px;
-                border-left: 4px solid #ffc107;
-                margin: 15px 0;
-            }
-            @media print {
-                body { background-color: white; }
-                .section { box-shadow: none; border: 1px solid #dee2e6; }
-            }
-        </style>
-    </head>
-    <body>
-        <div class="header">
-            <h1>Relatório Executivo</h1>
-            <p>Cliente ID: ${dados.id_cliente} | Gerado em: ${dados.data_geracao}</p>
-        </div>
-
-        <div class="section">
-            <h2>📊 Visão Geral</h2>
-            <div class="metric-grid">
-                <div class="metric-card">
-                    <div class="metric-title">Índice de Engajamento Geral (IEG)</div>
-                    <div class="metric-value">${dados.visao_geral.indice_engajamento_geral}</div>
-                    <div class="metric-description">Média ponderada dos pilares da Árvore da Vida</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Taxa de Evolução de Desenvolvimento (TED)</div>
-                    <div class="metric-value">${dados.visao_geral.taxa_evolucao_desenvolvimento}%</div>
-                    <div class="metric-description">Atividades concluídas ÷ Atividades planejadas no PDI</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Nível Médio de Reconhecimento (NMR)</div>
-                    <div class="metric-value">${dados.visao_geral.nivel_medio_reconhecimento}</div>
-                    <div class="metric-description">Total de reconhecimentos ÷ Colaboradores ativos</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Índice de Satisfação Interna (ISI)</div>
-                    <div class="metric-value">${dados.visao_geral.indice_satisfacao_interna}%</div>
-                    <div class="metric-description">Média ponderada de feedbacks positivos no portfólio</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Maturidade de Carreira (MC)</div>
-                    <div class="metric-value">${dados.visao_geral.maturidade_carreira}</div>
-                    <div class="metric-description">Metas concluídas + Evoluções de Portfólio ÷ Tempo de casa</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="section">
-            <h2>🌳 Árvore da Vida</h2>
-            <div class="metric-grid">
-                <div class="metric-card">
-                    <div class="metric-title">Índice de Plenitude</div>
-                    <div class="metric-value">${dados.arvore_da_vida.indice_plenitude}</div>
-                    <div class="metric-description">Média dos pilares Plenitude, Felicidade e Realização</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Índice de Vitalidade</div>
-                    <div class="metric-value">${dados.arvore_da_vida.indice_vitalidade}</div>
-                    <div class="metric-description">Média dos pilares Saúde, Equilíbrio Emocional e Energia</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Índice de Propósito e Contribuição</div>
-                    <div class="metric-value">${dados.arvore_da_vida.indice_proposito_contribuicao}</div>
-                    <div class="metric-description">Média de Espiritualidade + Contribuição Social</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Índice Profissional Global</div>
-                    <div class="metric-value">${dados.arvore_da_vida.indice_profissional_global}</div>
-                    <div class="metric-description">Média de Profissional + Desenvolvimento Intelectual + Recursos Financeiros</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="section">
-            <h2>🔍 Análise SWOT</h2>
-            <div class="metric-grid">
-                <div class="metric-card">
-                    <div class="metric-title">Forças vs Fraquezas Ratio (FFR)</div>
-                    <div class="metric-value">${dados.analise_swot.forcas_vs_fraquezas_ratio}</div>
-                    <div class="metric-description">Nº de forças ÷ Nº de fraquezas</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Oportunidades Aproveitadas</div>
-                    <div class="metric-value">${dados.analise_swot.oportunidades_aproveitadas}%</div>
-                    <div class="metric-description">Oportunidades transformadas em ações do PDI</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Ameaças Monitoradas</div>
-                    <div class="metric-value">${dados.analise_swot.ameacas_monitoradas}%</div>
-                    <div class="metric-description">Ameaças com plano mitigado</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="section">
-            <h2>📈 PDI (Plano de Desenvolvimento Individual)</h2>
-            <div class="metric-grid">
-                <div class="metric-card">
-                    <div class="metric-title">Progresso Médio do PDI</div>
-                    <div class="metric-value">${dados.pdi.progresso_medio_pdi}%</div>
-                    <div class="metric-description">% de atividades concluídas</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Taxa de Metas em Progresso</div>
-                    <div class="metric-value">${dados.pdi.taxa_metas_progresso}%</div>
-                    <div class="metric-description">Metas "em andamento" ÷ Total de metas</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Aderência ao Prazo</div>
-                    <div class="metric-value">${dados.pdi.aderencia_prazo}%</div>
-                    <div class="metric-description">Metas dentro do prazo ÷ Total de metas</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Engajamento com Mentoria</div>
-                    <div class="metric-value">${dados.pdi.engajamento_mentoria}%</div>
-                    <div class="metric-description">Participações em mentorias ÷ Colaboradores ativos</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="section">
-            <h2>💼 Portfólio</h2>
-            <div class="metric-grid">
-                <div class="metric-card">
-                    <div class="metric-title">Taxa de Atualização do Portfólio</div>
-                    <div class="metric-value">${dados.portfolio.taxa_atualizacao_portfolio}%</div>
-                    <div class="metric-description">Colaboradores com experiências nos últimos 90 dias</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Índice de Feedbacks Positivos</div>
-                    <div class="metric-value">${dados.portfolio.indice_feedbacks_positivos}%</div>
-                    <div class="metric-description">Feedbacks positivos ÷ Total de feedbacks</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Conquistas Validadas</div>
-                    <div class="metric-value">${dados.portfolio.conquistas_validadas}%</div>
-                    <div class="metric-description">Experiências com evidências comprovadas</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Ações de Melhoria</div>
-                    <div class="metric-value">${dados.portfolio.acoes_melhoria}</div>
-                    <div class="metric-description">Média de ações registradas por colaborador</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="section">
-            <h2>🏆 Programa de Reconhecimento</h2>
-            <div class="metric-grid">
-                <div class="metric-card">
-                    <div class="metric-title">Reconhecimentos por Colaborador</div>
-                    <div class="metric-value">${dados.reconhecimento.reconhecimentos_por_colaborador}</div>
-                    <div class="metric-description">Total de reconhecimentos ÷ Total de colaboradores</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Tempo Médio entre Reconhecimentos</div>
-                    <div class="metric-value">${dados.reconhecimento.tempo_medio_entre_reconhecimentos} dias</div>
-                    <div class="metric-description">Dias médios entre reconhecimentos por colaborador</div>
-                </div>
-            </div>
-            
-            ${dados.reconhecimento.top_skills_reconhecidas.length > 0 ? `
-            <h3>Top Skills Reconhecidas</h3>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Skill</th>
-                        <th>Frequência</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${dados.reconhecimento.top_skills_reconhecidas.map(skill => `
-                    <tr>
-                        <td>${skill.skill}</td>
-                        <td>${skill.frequencia}</td>
-                    </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-            ` : ''}
-
-            ${dados.reconhecimento.distribuicao_reconhecimento_por_area.length > 0 ? `
-            <h3>Distribuição de Reconhecimento por Área</h3>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Departamento</th>
-                        <th>Reconhecimentos</th>
-                        <th>Colaboradores</th>
-                        <th>Percentual</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${dados.reconhecimento.distribuicao_reconhecimento_por_area.map(area => `
-                    <tr>
-                        <td>${area.departamento}</td>
-                        <td>${area.total_reconhecimentos}</td>
-                        <td>${area.colaboradores_departamento}</td>
-                        <td>${area.percentual}%</td>
-                    </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-            ` : ''}
-        </div>
-
-        <div class="section">
-            <h2>📊 KPIs de Tendência</h2>
-            <div class="metric-grid">
-                <div class="metric-card">
-                    <div class="metric-title">Índice de Reconhecimento Recíproco</div>
-                    <div class="metric-value">${dados.tendencia.indice_reconhecimento_reciproco}%</div>
-                    <div class="metric-description">Reconhecimentos dados e recebidos por par</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Índice de Bem-Estar Organizacional</div>
-                    <div class="metric-value">${dados.tendencia.indice_bem_estar_organizacional}</div>
-                    <div class="metric-description">Média de Plenitude + Saúde + Equilíbrio emocional</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Tempo Médio de Evolução de Meta</div>
-                    <div class="metric-value">${dados.tendencia.tempo_medio_evolucao_meta} dias</div>
-                    <div class="metric-description">Dias até conclusão de metas</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="footer">
-            <p>Relatório gerado automaticamente pelo sistema Impulsionar Talentos</p>
-            <p>Data de geração: ${dados.data_geracao}</p>
-        </div>
-    </body>
-    </html>
-    `;
   }
 }
 

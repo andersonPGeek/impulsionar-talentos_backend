@@ -25,6 +25,30 @@ const upload = multer({
 });
 
 /**
+ * Middleware para normalizar status antes da validação
+ */
+const normalizeStatus = (req, res, next) => {
+  if (req.body && req.body.status) {
+    const statusMap = {
+      'em_progresso': 'Em Progresso',
+      'em progresso': 'Em Progresso',
+      'progresso': 'Em Progresso',
+      'parado': 'Parado',
+      'atrasado': 'Atrasado',
+      'concluida': 'Concluida',
+      'concluído': 'Concluida',
+      'concluida': 'Concluida'
+    };
+    
+    const statusLower = String(req.body.status).toLowerCase().trim();
+    if (statusMap[statusLower]) {
+      req.body.status = statusMap[statusLower];
+    }
+  }
+  next();
+};
+
+/**
  * Validação para atualizar status de atividade
  */
 const validateAtualizarAtividade = [
@@ -39,6 +63,7 @@ const validateAtualizarAtividade = [
  * Validação para atualizar status da meta
  */
 const validateAtualizarStatusMeta = [
+  normalizeStatus,
   body('status')
     .notEmpty()
     .withMessage('Status é obrigatório')
@@ -61,6 +86,7 @@ const validateAtualizarStatusMeta = [
  * Validação para criar meta PDI
  */
 const validateCriarMeta = [
+  normalizeStatus,
   body('id_usuario')
     .notEmpty()
     .withMessage('ID do usuário é obrigatório')
@@ -192,6 +218,13 @@ router.get('/gestor/:id_gestor', metasController.buscarMetasPorGestor);
  * @access Private
  */
 router.get('/usuario/:id_usuario', metasController.buscarMetasPorUsuario);
+
+/**
+ * @route GET /api/metas/habilidades-cargo/:id_cargo
+ * @desc Listar habilidades disponíveis para um cargo
+ * @access Private
+ */
+router.get('/habilidades-cargo/:id_cargo', metasController.buscarHabilidadesPorCargo);
 
 /**
  * @route PUT /api/metas/atividade/:id_meta_pdi/:id_atividade

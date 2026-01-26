@@ -4,6 +4,7 @@ const router = express.Router();
 // Importar rotas
 const authRoutes = require('./auth.routes');
 const perfilColaboradorRoutes = require('./perfil_colaborador.routes');
+const controleEmocionalRoutes = require('./controle.emocional.routes');
 const sabotadoresRoutes = require('./sabotadores.routes');
 const personalidadeRoutes = require('./personalidade.routes');
 const arvoreDaVidaRoutes = require('./arvore_da_vida.routes');
@@ -30,6 +31,7 @@ router.get('/test', (req, res) => {
     endpoints: {
       auth: '/api/auth',
       perfilColaborador: '/api/perfil-colaborador',
+      controleEmocional: '/api/controle-emocional',
       sabotadores: '/api/sabotadores',
       personalidade: '/api/personalidade',
       arvoreDaVida: '/api/arvore-da-vida',
@@ -54,6 +56,7 @@ router.get('/test', (req, res) => {
 // Configurar rotas
 router.use('/auth', authRoutes);
 router.use('/perfil-colaborador', perfilColaboradorRoutes);
+router.use('/controle-emocional', controleEmocionalRoutes);
 router.use('/sabotadores', sabotadoresRoutes);
 router.use('/personalidade', personalidadeRoutes);
 router.use('/arvore-da-vida', arvoreDaVidaRoutes);
@@ -72,4 +75,4 @@ router.use('/reconhecimento', reconhecimentoRoutes);
 router.use('/relatorio-executivo', relatorioExecutivoRoutes);
 // router.use('/talentos', talentosRoutes);
 
-module.exports = router; 
+module.exports = router;

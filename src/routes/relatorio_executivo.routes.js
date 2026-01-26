@@ -209,18 +209,144 @@ router.get('/tempo-medio-evolucao-meta/:id_cliente', relatorioExecutivoControlle
 // ========== APIs DE GERAÇÃO DE RELATÓRIOS ==========
 
 /**
- * @route GET /api/relatorio-executivo/gerar-pdf/:id_cliente
- * @desc Gerar PDF do Relatório Executivo completo
+ * @route GET /api/relatorio-executivo/relatorio-completo/:id_cliente?periodo=ultimo_mes|ultimo_trimestre|ultimo_semestre|ultimo_ano
+ * @desc Relatório Executivo Completo - Todos os dados agregados (visão geral, árvore da vida, SWOT, PDI, portfólio, reconhecimento, tendência, bem-estar emocional)
+ * @query periodo: Filtro de período (opcional): 'ultimo_mes', 'ultimo_trimestre', 'ultimo_semestre', 'ultimo_ano'
  * @access Private
  */
-router.get('/gerar-pdf/:id_cliente', relatorioExecutivoController.gerarPDFRelatorio);
+router.get('/relatorio-completo/:id_cliente', async (req, res) => {
+  const { id_cliente } = req.params;
+  const { periodo } = req.query;
+  
+  if (!id_cliente || isNaN(id_cliente)) {
+    return res.status(400).json({
+      success: false,
+      message: 'ID do cliente é obrigatório e deve ser um número válido'
+    });
+  }
+
+  try {
+    const dados = await relatorioExecutivoController.coletarTodosOsDados(id_cliente, periodo || null);
+    return res.status(200).json({
+      success: true,
+      message: 'Relatório executivo completo buscado com sucesso',
+      data: dados
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: 'INTERNAL_ERROR',
+      message: 'Erro ao gerar relatório executivo completo'
+    });
+  }
+});
 
 /**
- * @route GET /api/relatorio-executivo/gerar-excel/:id_cliente
- * @desc Gerar Excel do Relatório Executivo completo
+ * @route GET /api/relatorio-executivo/gerar-pdf/:id_cliente?periodo=ultimo_mes|ultimo_trimestre|ultimo_semestre|ultimo_ano
+ * @desc Gerar PDF do Relatório Executivo completo
+ * @query periodo: Filtro de período (opcional): 'ultimo_mes', 'ultimo_trimestre', 'ultimo_semestre', 'ultimo_ano'
  * @access Private
  */
-router.get('/gerar-excel/:id_cliente', relatorioExecutivoController.gerarExcelRelatorio);
+router.get('/gerar-pdf/:id_cliente', async (req, res) => {
+  const { id_cliente } = req.params;
+  const { periodo } = req.query;
+  
+  if (!id_cliente || isNaN(id_cliente)) {
+    return res.status(400).json({
+      success: false,
+      message: 'ID do cliente é obrigatório e deve ser um número válido'
+    });
+  }
+
+  try {
+    const buffer = await relatorioExecutivoController.gerarPDFRelatorio(id_cliente, periodo || null);
+    
+    // Garantir que é um Buffer válido
+    const pdfBuffer = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+    
+    res.status(200);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="relatorio-executivo-${id_cliente}-${new Date().getTime()}.pdf"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    
+    return res.end(pdfBuffer);
+  } catch (error) {
+    logger.error('Erro ao gerar PDF:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'INTERNAL_ERROR',
+      message: 'Erro ao gerar PDF do relatório executivo'
+    });
+  }
+});
+
+/**
+ * @route GET /api/relatorio-executivo/gerar-excel/:id_cliente?periodo=ultimo_mes|ultimo_trimestre|ultimo_semestre|ultimo_ano
+ * @desc Gerar Excel do Relatório Executivo completo
+ * @query periodo: Filtro de período (opcional): 'ultimo_mes', 'ultimo_trimestre', 'ultimo_semestre', 'ultimo_ano'
+ * @access Private
+ */
+router.get('/gerar-excel/:id_cliente', async (req, res) => {
+  const { id_cliente } = req.params;
+  const { periodo } = req.query;
+  
+  if (!id_cliente || isNaN(id_cliente)) {
+    return res.status(400).json({
+      success: false,
+      message: 'ID do cliente é obrigatório e deve ser um número válido'
+    });
+  }
+
+  try {
+    const buffer = await relatorioExecutivoController.gerarExcelRelatorio(id_cliente, periodo || null);
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="relatorio-executivo-${id_cliente}-${new Date().getTime()}.xlsx"`);
+    res.send(buffer);
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: 'INTERNAL_ERROR',
+      message: 'Erro ao gerar Excel do relatório executivo'
+    });
+  }
+});
+
+// ========== ROTA ATALHO - Relatório Completo (COLOCAR POR ÚLTIMO) ==========
+
+/**
+ * @route GET /api/relatorio-executivo/:id_cliente?periodo=ultimo_mes|ultimo_trimestre|ultimo_semestre|ultimo_ano
+ * @desc Relatório Executivo Completo (ATALHO) - Todos os dados agregados
+ * @query periodo: Filtro de período (opcional): 'ultimo_mes', 'ultimo_trimestre', 'ultimo_semestre', 'ultimo_ano'
+ * @access Private
+ * @note Esta rota deve estar ao final para não interceptar rotas específicas
+ */
+router.get('/:id_cliente', async (req, res) => {
+  const { id_cliente } = req.params;
+  const { periodo } = req.query;
+  
+  if (!id_cliente || isNaN(id_cliente)) {
+    return res.status(400).json({
+      success: false,
+      message: 'ID do cliente é obrigatório e deve ser um número válido'
+    });
+  }
+
+  try {
+    const dados = await relatorioExecutivoController.coletarTodosOsDados(id_cliente, periodo || null);
+    return res.status(200).json({
+      success: true,
+      message: 'Relatório executivo completo buscado com sucesso',
+      data: dados
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: 'INTERNAL_ERROR',
+      message: 'Erro ao gerar relatório executivo completo'
+    });
+  }
+});
 
 module.exports = router;
 

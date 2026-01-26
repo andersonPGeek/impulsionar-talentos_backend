@@ -822,13 +822,143 @@ class DashboardController extends BaseController {
         };
       });
 
+      // 6. Buscar dados de bem-estar emocional (checkin_emocional)
+      const checkinsEmocionalQuery = `
+        SELECT 
+          COUNT(*) as total_checkins,
+          AVG(score) as media_nota_bem_estar,
+          ROUND(AVG(score)::numeric, 2)::float as media_nota_bem_estar_rounded
+        FROM checkin_emocional
+      `;
+      const checkinsEmocionalResult = await client.query(checkinsEmocionalQuery);
+      const checkinsStats = checkinsEmocionalResult.rows[0];
+      const totalCheckins = parseInt(checkinsStats.total_checkins) || 0;
+      const mediaNotaBemEstar = parseFloat(checkinsStats.media_nota_bem_estar_rounded) || 0;
+
+      // 7. Buscar agrupamento de checkins por nota (score)
+      const checkinsNotaQuery = `
+        SELECT 
+          score,
+          COUNT(*) as quantidade
+        FROM checkin_emocional
+        GROUP BY score
+        ORDER BY score ASC
+      `;
+      const checkinsNotaResult = await client.query(checkinsNotaQuery);
+      
+      const checkinsAgrupladosPorNota = {
+        nota_1: 0,
+        nota_2: 0,
+        nota_3: 0,
+        nota_4: 0,
+        nota_5: 0
+      };
+
+      checkinsNotaResult.rows.forEach(row => {
+        const nota = parseInt(row.score);
+        const quantidade = parseInt(row.quantidade);
+        checkinsAgrupladosPorNota[`nota_${nota}`] = quantidade;
+      });
+
+      // 8. Buscar agrupamento de checkins por categoria de motivo
+      const checkinsCategoriaQuery = `
+        SELECT 
+          categoria_motivo,
+          COUNT(*) as quantidade
+        FROM checkin_emocional
+        WHERE categoria_motivo IS NOT NULL
+        GROUP BY categoria_motivo
+        ORDER BY quantidade DESC
+      `;
+      const checkinsCategoriaResult = await client.query(checkinsCategoriaQuery);
+      
+      const checkinsAgrupadosPorCategoria = checkinsCategoriaResult.rows.map(row => ({
+        categoria: row.categoria_motivo || 'Sem categoria',
+        quantidade: parseInt(row.quantidade)
+      }));
+
+      // 9. Buscar dados de ações de bem-estar (checkin_acao)
+      const acoesBemEstarQuery = `
+        SELECT 
+          COUNT(*) as total_acoes,
+          COUNT(*) FILTER (WHERE status = 'pendente') as acoes_pendentes,
+          COUNT(*) FILTER (WHERE status = 'em_progresso') as acoes_em_progresso,
+          COUNT(*) FILTER (WHERE status = 'concluida') as acoes_concluidas,
+          COUNT(*) FILTER (WHERE status = 'cancelada') as acoes_canceladas
+        FROM checkin_acao
+      `;
+      const acoesBemEstarResult = await client.query(acoesBemEstarQuery);
+      const acoesStats = acoesBemEstarResult.rows[0];
+      const totalAcoes = parseInt(acoesStats.total_acoes) || 0;
+      const acoesPendentes = parseInt(acoesStats.acoes_pendentes) || 0;
+      const acoesEmProgresso = parseInt(acoesStats.acoes_em_progresso) || 0;
+      const acoesConcluidas = parseInt(acoesStats.acoes_concluidas) || 0;
+      const acoesCanceladas = parseInt(acoesStats.acoes_canceladas) || 0;
+
+      // 10. Buscar agrupamento de ações por tipo
+      const acoesTipoQuery = `
+        SELECT 
+          tipo_acao,
+          COUNT(*) as quantidade
+        FROM checkin_acao
+        GROUP BY tipo_acao
+        ORDER BY quantidade DESC
+      `;
+      const acoesTipoResult = await client.query(acoesTipoQuery);
+      
+      const acoesAgrupadasPorTipo = acoesTipoResult.rows.map(row => ({
+        tipo_acao: row.tipo_acao || 'Sem tipo',
+        quantidade: parseInt(row.quantidade)
+      }));
+
+      // 11. Buscar agrupamento de ações por prioridade
+      const acoesPrioridadeQuery = `
+        SELECT 
+          prioridade,
+          COUNT(*) as quantidade
+        FROM checkin_acao
+        GROUP BY prioridade
+        ORDER BY 
+          CASE prioridade
+            WHEN 'alta' THEN 1
+            WHEN 'normal' THEN 2
+            WHEN 'baixa' THEN 3
+            ELSE 4
+          END
+      `;
+      const acoesPrioridadeResult = await client.query(acoesPrioridadeQuery);
+      
+      const acoesAgrupadasPorPrioridade = acoesPrioridadeResult.rows.map(row => ({
+        prioridade: row.prioridade || 'normal',
+        quantidade: parseInt(row.quantidade)
+      }));
+
+      // 12. Buscar agrupamento de ações por status
+      const acoesStatusQuery = `
+        SELECT 
+          status,
+          COUNT(*) as quantidade
+        FROM checkin_acao
+        GROUP BY status
+        ORDER BY status
+      `;
+      const acoesStatusResult = await client.query(acoesStatusQuery);
+      
+      const acoesAgrupadasPorStatus = acoesStatusResult.rows.map(row => ({
+        status: row.status || 'pendente',
+        quantidade: parseInt(row.quantidade)
+      }));
+
       logger.info('Dashboard de RH buscado com sucesso', {
         total_colaboradores: totalColaboradores,
         gestores_ativos: gestoresAtivos,
         metas_concluidas: metasConcluidas,
         metas_abertas: metasAbertas,
         departamentos: metasDepartamento.length,
-        gestores: metasGestor.length
+        gestores: metasGestor.length,
+        total_checkins: totalCheckins,
+        media_bem_estar: mediaNotaBemEstar,
+        total_acoes: totalAcoes
       });
 
       return res.status(200).json({
@@ -840,7 +970,23 @@ class DashboardController extends BaseController {
           metas_concluidas: metasConcluidas,
           metas_abertas: metasAbertas,
           metas_departamento: metasDepartamento,
-          metas_gestor: metasGestor
+          metas_gestor: metasGestor,
+          bem_estar_emocional: {
+            total_checkins: totalCheckins,
+            media_nota_bem_estar: mediaNotaBemEstar,
+            checkins_agrupados_por_nota: checkinsAgrupladosPorNota,
+            checkins_agrupados_por_categoria: checkinsAgrupadosPorCategoria
+          },
+          acoes_bem_estar: {
+            total_acoes: totalAcoes,
+            acoes_pendentes: acoesPendentes,
+            acoes_em_progresso: acoesEmProgresso,
+            acoes_concluidas: acoesConcluidas,
+            acoes_canceladas: acoesCanceladas,
+            acoes_agrupadas_por_tipo: acoesAgrupadasPorTipo,
+            acoes_agrupadas_por_prioridade: acoesAgrupadasPorPrioridade,
+            acoes_agrupadas_por_status: acoesAgrupadasPorStatus
+          }
         }
       });
 

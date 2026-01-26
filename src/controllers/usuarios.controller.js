@@ -120,22 +120,30 @@ class UsuariosController extends BaseController {
         });
       }
 
-      // Query simplificada para buscar todos os usuários que têm o gestor especificado
+      // Query com LEFT JOIN para buscar a última nota de bem-estar (checkin emocional)
       const usuariosQuery = `
         SELECT 
-          id,
-          nome,
-          cargo,
-          email,
-          idade,
-          data_nascimento,
-          id_cliente,
-          id_departamento,
-          perfil_acesso,
-          id_gestor
-        FROM usuarios
-        WHERE id_gestor = $1
-        ORDER BY nome ASC
+          u.id,
+          u.nome,
+          u.cargo,
+          u.email,
+          u.idade,
+          u.data_nascimento,
+          u.id_cliente,
+          u.id_departamento,
+          u.perfil_acesso,
+          u.id_gestor,
+          ce.score as ultima_nota_bem_estar
+        FROM usuarios u
+        LEFT JOIN LATERAL (
+          SELECT score
+          FROM checkin_emocional
+          WHERE id_user = u.id
+          ORDER BY data_checkin DESC, created_at DESC
+          LIMIT 1
+        ) ce ON true
+        WHERE u.id_gestor = $1
+        ORDER BY u.nome ASC
       `;
 
       const result = await client.query(usuariosQuery, [id_gestor]);
@@ -163,7 +171,8 @@ class UsuariosController extends BaseController {
         id_departamento: row.id_departamento,
         departamento_nome: null, // Será implementado quando as tabelas relacionadas estiverem disponíveis
         perfil_acesso: row.perfil_acesso,
-        perfil_acesso_nome: null // Será implementado quando as tabelas relacionadas estiverem disponíveis
+        perfil_acesso_nome: null, // Será implementado quando as tabelas relacionadas estiverem disponíveis
+        ultima_nota_bem_estar: row.ultima_nota_bem_estar
       }));
 
       logger.info('Usuários buscados com sucesso', {
