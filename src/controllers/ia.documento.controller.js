@@ -1,5 +1,6 @@
 const { BaseController } = require('./index');
 const { OpenAI } = require('openai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const logger = require('../utils/logger');
 const ApiResponse = require('../utils/response');
 const pdf = require('pdf-parse');
@@ -112,6 +113,9 @@ class IADocumentoController extends BaseController {
   constructor() {
     super();
     this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    // Google Generative AI (Gemini) - para o método ajustar
+    this.gemini = new GoogleGenerativeAI('AIzaSyDhnWliy4vU0OUTsSoaZN6Rz79cl-HVPyQ');
+    this.geminiModel = this.gemini.getGenerativeModel({ model: 'gemini-2.5-flash' });
   }
 
   /**
@@ -316,23 +320,37 @@ LEMBRE-SE:
 - Mantenha a coerência jurídica do documento.
 - Retorne APENAS o JSON solicitado, sem markdown.`;
 
-      const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPromptAjuste },
-          { role: 'user', content: userPromptAjuste }
-        ],
-        max_tokens: 16384,
-        temperature: 0.2,
-        response_format: { type: 'json_object' }
+      // Usar Google Gemini para o método ajustar
+      logger.info('Chamando Gemini para ajuste de documento', {
+        modelo: 'gemini-2.5-flash',
+        tam_prompt: userPromptAjuste.length
       });
 
-      const raw = completion.choices[0].message.content;
+      const fullPrompt = `${systemPromptAjuste}\n\n${userPromptAjuste}`;
+      
+      const result = await this.geminiModel.generateContent(fullPrompt);
+      const responseText = result.response.text();
+
+      // Gemini pode envoltar JSON em markdown, então remover se necessário
+      let raw = responseText.trim();
+      if (raw.startsWith('```json')) {
+        raw = raw.slice(7); // Remove ```json
+        if (raw.endsWith('```')) {
+          raw = raw.slice(0, -3); // Remove ```
+        }
+      } else if (raw.startsWith('```')) {
+        raw = raw.slice(3); // Remove ```
+        if (raw.endsWith('```')) {
+          raw = raw.slice(0, -3); // Remove ```
+        }
+      }
+      raw = raw.trim();
+
       let parsed;
       try {
         parsed = JSON.parse(raw);
       } catch (e) {
-        logger.error('Resposta da IA não é JSON válido no ajuste', { raw: raw?.slice(0, 500) });
+        logger.error('Resposta do Gemini não é JSON válido no ajuste', { raw: raw?.slice(0, 500) });
         return ApiResponse.error(res, 'A IA retornou uma resposta inválida. Tente novamente.', 502, { error: 'IA_INVALID_JSON' });
       }
 
@@ -355,13 +373,17 @@ LEMBRE-SE:
 
       return ApiResponse.success(res, data, 'Documento ajustado com sucesso');
     } catch (err) {
-      logger.error('Erro ao ajustar documento', { error: err.message, stack: err.stack });
-      if (err.code === 'OPENAI_QUOTA_EXCEEDED' || err.status === 429) {
-        return ApiResponse.error(res, 'Limite de uso da OpenAI excedido. Tente mais tarde.', 429, { error: 'OPENAI_QUOTA_EXCEEDED' });
+      logger.error('Erro ao ajustar documento com Gemini', { error: err.message, stack: err.stack });
+      
+      // Tratamento de erros específicos do Gemini
+      if (err.message?.includes('PERMISSION_DENIED') || err.message?.includes('API key')) {
+        return ApiResponse.error(res, 'Erro de autenticação com Gemini. Verifique a configuração.', 500, { error: 'GEMINI_AUTH_ERROR' });
       }
-      if (err.code === 'OPENAI_RATE_LIMIT') {
-        return ApiResponse.error(res, 'Muitas requisições. Aguarde e tente novamente.', 429, { error: 'OPENAI_RATE_LIMIT' });
+      
+      if (err.message?.includes('RESOURCE_EXHAUSTED') || err.status === 429) {
+        return ApiResponse.error(res, 'Limite de uso do Gemini excedido. Tente mais tarde.', 429, { error: 'GEMINI_QUOTA_EXCEEDED' });
       }
+      
       return ApiResponse.internalError(res, err.message || 'Erro ao ajustar documento.');
     }
   };

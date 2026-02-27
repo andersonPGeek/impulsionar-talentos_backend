@@ -24,11 +24,37 @@ const config = {
       // Permitir requisições sem origin (como mobile apps ou Postman)
       if (!origin) return callback(null, true);
       
-      const allowedOrigins = process.env.CORS_ORIGIN 
-        ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
-        : ['http://localhost:8080', 'http://localhost:3000', 'http://localhost:3002', 'http://localhost:5173'];
+      // Defaults para quando CORS_ORIGIN não está definido
+      const defaultOrigins = [
+        'http://localhost:8080',
+        'http://localhost:3000',
+        'http://localhost:3002',
+        'http://localhost:5173'
+      ];
       
-      // Em desenvolvimento, permitir todos os localhost
+      // Usar CORS_ORIGIN se definido, senão usar defaults
+      let allowedOrigins = defaultOrigins;
+      
+      if (process.env.CORS_ORIGIN) {
+        // Dividir by commas e remover espaços
+        const configuredOrigins = process.env.CORS_ORIGIN
+          .split(',')
+          .map(o => o.trim())
+          .filter(o => o.length > 0);
+        
+        // Se houver origins configuradas, usar elas (não adicionar aos defaults)
+        if (configuredOrigins.length > 0) {
+          allowedOrigins = configuredOrigins;
+          
+          // Em produção, adicionar localhost para desenvolvimento/debug
+          if (process.env.NODE_ENV === 'production' && !configuredOrigins.some(o => o.includes('localhost'))) {
+            // Não adicionar localhost automaticamente - ser explícito sobre segurança
+            allowedOrigins = configuredOrigins;
+          }
+        }
+      }
+      
+      // Em desenvolvimento, permitir automaticamente todos os localhost
       if (process.env.NODE_ENV === 'development') {
         if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
           return callback(null, true);
@@ -40,7 +66,17 @@ const config = {
         return callback(null, true);
       }
       
-      console.warn(`⚠️ CORS bloqueado para origin: ${origin}`);
+      // Log detalhado para debugging
+      const env = process.env.NODE_ENV || 'unknown';
+      const configuredValue = process.env.CORS_ORIGIN ? `"${process.env.CORS_ORIGIN}"` : 'não definido (usando defaults)';
+      console.warn(
+        `⚠️ CORS bloqueado\n` +
+        `   Origin: ${origin}\n` +
+        `   Ambiente: ${env}\n` +
+        `   CORS_ORIGIN: ${configuredValue}\n` +
+        `   Permitidos: ${allowedOrigins.join(', ')}`
+      );
+      
       return callback(new Error('Não permitido pelo CORS'));
     },
     credentials: true,
