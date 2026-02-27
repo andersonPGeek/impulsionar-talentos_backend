@@ -26,7 +26,7 @@ const config = {
       
       const allowedOrigins = process.env.CORS_ORIGIN 
         ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
-        : ['http://localhost:8080', 'http://localhost:3000', 'http://localhost:3002'];
+        : ['http://localhost:8080', 'http://localhost:3000', 'http://localhost:3002', 'http://localhost:5173'];
       
       // Em desenvolvimento, permitir todos os localhost
       if (process.env.NODE_ENV === 'development') {
