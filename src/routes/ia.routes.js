@@ -1,9 +1,12 @@
 const express = require('express');
 const WebSocket = require('ws');
 const iaController = require('../controllers/ia.controller');
+const iaDocumentoRoutes = require('./ia.documento.routes');
 const logger = require('../utils/logger');
 
 const router = express.Router();
+
+router.use('/documento', iaDocumentoRoutes);
 
 /**
  * @route GET /api/ia/info

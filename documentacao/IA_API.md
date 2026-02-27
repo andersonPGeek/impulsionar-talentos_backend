@@ -20,6 +20,14 @@ Authorization: Bearer <token>
 
 ## Endpoints
 
+### IA Documento (gerador de documento visual)
+
+Geração de documento visual em HTML+CSS a partir de um template HTML e de um PDF jurídico (extração de texto + IA). Ver **[IA_DOCUMENTO_API.md](IA_DOCUMENTO_API.md)** para rota, uso e payload.
+
+- **POST** `/api/ia/documento/gerar` — multipart: `template_html`, `documento_pdf`; opcional: `modelo_visual`, `metadados`.
+
+---
+
 ### 1. Obter Informações da API de IA
 
 Retorna informações sobre as funcionalidades disponíveis.
