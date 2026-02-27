@@ -114,8 +114,13 @@ class IADocumentoController extends BaseController {
     super();
     this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     // Google Generative AI (Gemini) - para o método ajustar
-    this.gemini = new GoogleGenerativeAI('AIzaSyDhnWliy4vU0OUTsSoaZN6Rz79cl-HVPyQ');
-    this.geminiModel = this.gemini.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (!geminiKey) {
+      logger.warn('GEMINI_API_KEY não foi definida no .env. Funcionalidade de ajuste de documento via Gemini desabilitada.');
+    } else {
+      this.gemini = new GoogleGenerativeAI(geminiKey);
+      this.geminiModel = this.gemini.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    }
   }
 
   /**
